@@ -484,13 +484,13 @@
         const FLYING_ZOMBIE_HEAD_RADIUS = 6;
         const ZOMBIE_INITIAL_SPEED = 0.6;
         const FLYING_ZOMBIE_SPEED_MULTIPLIER = 1.1; 
-        const ZOMBIE_INITIAL_HEALTH = 60; // Base health for normal zombies
+        const ZOMBIE_INITIAL_HEALTH = 60; 
         const FLYING_ZOMBIE_HEALTH_MULTIPLIER = 0.8; 
         const ZOMBIE_ATTACK_DAMAGE = 12;
         const ZOMBIE_ATTACK_COOLDOWN = 1200; 
 
         // Boss Constants
-        const BOSS_BASE_HEALTH = ZOMBIE_INITIAL_HEALTH * 3; // Boss health will scale
+        const BOSS_BASE_HEALTH = ZOMBIE_INITIAL_HEALTH * 3; 
         const BOSS_WIDTH = ZOMBIE_WIDTH * 2.8; 
         const BOSS_BODY_HEIGHT = ZOMBIE_BODY_HEIGHT * 1.8;
         const BOSS_HEAD_RADIUS = ZOMBIE_HEAD_RADIUS * 2.2;
@@ -533,7 +533,8 @@
         let zombiesToSpawn = 0;
         let zombiesSpawnedThisWave = 0;
         let timeSinceLastZombieSpawn = 0;
-        const ZOMBIE_SPAWN_INTERVAL = 1800; 
+        const INITIAL_ZOMBIE_SPAWN_INTERVAL = 1800; // Renamed
+        let currentZombieSpawnInterval = INITIAL_ZOMBIE_SPAWN_INTERVAL; // New dynamic interval
         const FLYING_ZOMBIE_CHANCE = 0.24; 
         
         let isBossWave = false; 
@@ -1104,6 +1105,7 @@
             
             currentMaxClipSize = INITIAL_CLIP_SIZE; 
             currentReloadDuration = INITIAL_RELOAD_DURATION; 
+            currentZombieSpawnInterval = INITIAL_ZOMBIE_SPAWN_INTERVAL; // Reset zombie spawn interval
 
             const initialPlayerY = canvas.height - 10; 
             player = new Player(canvas.width / 2, initialPlayerY); 
@@ -1128,15 +1130,24 @@
         async function startNextWave() { 
             currentWave++; wavesSurvived = currentWave -1; 
             isBossWave = (currentWave > 0 && currentWave % 4 === 0); 
+            const wavesCompleted = currentWave - 1; // For easier calculation of scaling
 
             if (currentWave > 0) {
-                currentMaxClipSize = INITIAL_CLIP_SIZE + (currentWave - 1);
-                const wavesCompletedForReload = currentWave - 1;
-                const reductionPerWaveFactor = 0.03;
-                const maxReductionFactor = 0.70; 
-                let totalReductionFactor = wavesCompletedForReload * reductionPerWaveFactor;
-                totalReductionFactor = Math.min(totalReductionFactor, maxReductionFactor);
-                currentReloadDuration = INITIAL_RELOAD_DURATION * (1 - totalReductionFactor);
+                currentMaxClipSize = INITIAL_CLIP_SIZE + wavesCompleted;
+                
+                const reductionPerWaveFactorReload = 0.03;
+                const maxReductionFactorReload = 0.70; 
+                let totalReductionFactorReload = wavesCompleted * reductionPerWaveFactorReload;
+                totalReductionFactorReload = Math.min(totalReductionFactorReload, maxReductionFactorReload);
+                currentReloadDuration = INITIAL_RELOAD_DURATION * (1 - totalReductionFactorReload);
+
+                // --- ZOMBIE SPAWN INTERVAL SCALING ---
+                const reductionPerWaveFactorSpawn = 0.03;
+                const maxReductionFactorSpawn = 0.70; // Max 70% faster spawn (interval is 30% of original)
+                let totalReductionFactorSpawn = wavesCompleted * reductionPerWaveFactorSpawn;
+                totalReductionFactorSpawn = Math.min(totalReductionFactorSpawn, maxReductionFactorSpawn);
+                currentZombieSpawnInterval = INITIAL_ZOMBIE_SPAWN_INTERVAL * (1 - totalReductionFactorSpawn);
+                // console.log(`Wave ${currentWave}: SpawnInterval: ${currentZombieSpawnInterval.toFixed(2)}ms`);
             }
 
             if (player) { 
@@ -1159,7 +1170,8 @@
                 }
             }
             zombiesSpawnedThisWave = 0; 
-            timeSinceLastZombieSpawn = ZOMBIE_SPAWN_INTERVAL; updateWaveDisplay();
+            timeSinceLastZombieSpawn = currentZombieSpawnInterval; // Start with full interval for the first zombie of the wave
+            updateWaveDisplay();
 
             if (currentWave > 1) { 
                 const waveType = isBossWave ? `BOSS WAVE ${currentWave}!!!` : `Wave ${currentWave}`;
@@ -1181,13 +1193,24 @@
                 let zT='ground';
                 if(currentWave>=3&&Math.random()<actualFlyingChance)zT='flying';
                 let x,y;
-                // Zombie speed still increases with wave, but health is now constant
-                const s=ZOMBIE_INITIAL_SPEED+(currentWave*0.09), h=ZOMBIE_INITIAL_HEALTH; 
+                const wavesCompleted = currentWave - 1;
+                
+                // Zombie speed still increases with wave
+                const s = ZOMBIE_INITIAL_SPEED + (wavesCompleted * 0.09);
+                let h;
+
+                if (zT === 'ground') {
+                    const healthBoostIntervals = Math.floor(wavesCompleted / 3);
+                    h = ZOMBIE_INITIAL_HEALTH * (1 + (healthBoostIntervals * 0.25));
+                } else { // zT === 'flying'
+                    h = ZOMBIE_INITIAL_HEALTH; // Base health, constructor applies FLYING_ZOMBIE_HEALTH_MULTIPLIER
+                }
+                
                 if(zT==='flying'){
                     x=Math.random()<0.5?-ZOMBIE_WIDTH/2-20:canvas.width+ZOMBIE_WIDTH/2+20;
                     y=(FLYING_ZOMBIE_BODY_HEIGHT+FLYING_ZOMBIE_HEAD_RADIUS)+Math.random()*(canvas.height*0.5);
                     y=Math.min(y,canvas.height-50);
-                }else{
+                }else{ // ground
                     x=Math.random()<0.5?-ZOMBIE_WIDTH/2-20:canvas.width+ZOMBIE_WIDTH/2+20;
                     y=canvas.height-10;
                 }
@@ -1307,7 +1330,7 @@
             
             if (!isBossWave) { 
                 timeSinceLastZombieSpawn+=1000/60;
-                if(timeSinceLastZombieSpawn>=ZOMBIE_SPAWN_INTERVAL&&zombiesSpawnedThisWave<zombiesToSpawn){
+                if(timeSinceLastZombieSpawn>=currentZombieSpawnInterval && zombiesSpawnedThisWave<zombiesToSpawn){ // Use currentZombieSpawnInterval
                     spawnZombie();
                     timeSinceLastZombieSpawn=0;
                 }
