@@ -1,0 +1,1389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>ZombieWave</title>
+    <style type="text/css">
+        /* style.css */
+        body {
+            margin: 0;
+            font-family: 'Arial', sans-serif;
+            background-color: #2c3e50; 
+            color: #ecf0f1; 
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow-x: hidden; 
+            padding: 10px;
+            box-sizing: border-box;
+        }
+
+        #pageWrapper {
+            display: flex;
+            flex-direction: row; 
+            align-items: flex-start; 
+            gap: 20px; 
+            width: 100%;
+            max-width: 1600px; 
+            justify-content: center;
+        }
+
+        #gameArea { 
+            display: flex;
+            flex-direction: column;
+            align-items: center; 
+            gap: 15px; 
+        }
+
+        #gameContainer {
+            position: relative;
+            border: 3px solid #34495e; 
+            overflow: hidden;
+            background-color: #34495e; 
+            box-shadow: 0 0 15px rgba(0,0,0,0.3);
+            border-radius: 8px; 
+        }
+
+        #gameCanvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            border-radius: 6px; 
+        }
+
+        #uiOverlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 10px;
+            box-sizing: border-box;
+            border-radius: 6px; 
+        }
+
+        #topLeftUI, #topRightUI, #bottomLeftUI, #bottomRightUI {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            background-color: rgba(44, 62, 80, 0.7); 
+            padding: 8px;
+            border-radius: 5px;
+        }
+
+        #topLeftUI { position: absolute; top: 10px; left: 10px; flex-direction: column; align-items: flex-start; }
+        #topRightUI { position: absolute; top: 10px; right: 10px; flex-direction: column; align-items: flex-end;} 
+        #bottomLeftUI { position: absolute; bottom: 10px; left: 10px; flex-direction: column; align-items: flex-start; }
+        #bottomRightUI { position: absolute; bottom: 10px; right: 10px; }
+
+
+        #scoreDisplay, #waveDisplay, #playerHealthText, #reloadIndicator {
+            padding: 5px 10px;
+            font-size: 0.9em;
+            color: #ecf0f1; 
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.5); 
+        }
+        #reloadIndicator { min-width: 120px; text-align: center; }
+
+
+        #healthBarContainer {
+            width: 150px; 
+            height: 18px;
+            background-color: #566573; 
+            border: 1px solid #abb2b9; 
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 5px;
+        }
+
+        #healthBarFill {
+            width: 100%;
+            height: 100%;
+            background-color: #2ecc71; 
+            transition: width 0.3s ease, background-color 0.3s ease;
+            border-radius: 3px;
+        }
+
+        #gameOverScreen { 
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(52, 73, 94, 0.95); 
+            padding: 30px 40px; 
+            border-radius: 10px;
+            text-align: center;
+            z-index: 10;
+            pointer-events: all;
+            display: none; 
+            min-width: 320px; 
+            box-shadow: 0 5px 20px rgba(0,0,0,0.4);
+        }
+        #gameOverScreen.active { display: block; } 
+
+        #gameOverScreen h2 { 
+            margin-top: 0;
+            margin-bottom: 20px; 
+            color: #e74c3c; 
+            font-size: 2em;
+        }
+        
+        #gameOverScreen p { margin-bottom: 15px; line-height: 1.6; }
+
+
+        #gameOverScreen button, #gameOverScreen a { 
+            display: inline-block;
+            padding: 12px 25px; 
+            font-size: 1.1em;
+            background-color: #27ae60; 
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            text-decoration: none;
+            margin-top: 15px;
+            transition: background-color 0.2s ease, transform 0.1s ease;
+            font-weight: bold;
+        }
+        #gameOverScreen a { background-color: #3498db; }
+
+        #gameOverScreen button:hover, #gameOverScreen a:hover {
+            background-color: #2ecc71; 
+            transform: translateY(-2px); 
+        }
+        #gameOverScreen a:hover { background-color: #5dade2; }
+        #gameOverScreen button:active, #gameOverScreen a:active {
+            transform: translateY(0px); 
+        }
+
+        #muteButton {
+            background-color: rgba(44, 62, 80, 0.8);
+            color: white;
+            border: 1px solid #7f8c8d;
+            border-radius: 50%; 
+            width: 45px;
+            height: 45px;
+            font-size: 1.5em; 
+            cursor: pointer;
+            pointer-events: all;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: background-color 0.2s ease;
+        }
+        #muteButton:hover { background-color: rgba(52, 73, 94, 1); }
+        #muteButton.muted { text-decoration: line-through; opacity: 0.7; }
+
+
+        #howToPlay {
+            background-color: #34495e; 
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.2);
+            width: 300px; 
+            align-self: stretch; 
+            min-height: 300px; 
+            display: flex; 
+            flex-direction: column; 
+            justify-content: space-between; 
+            flex-shrink: 0; 
+        }
+        #howToPlay h2 {
+            margin-top: 0;
+            color: #e74c3c; 
+            text-align: center;
+            margin-bottom: 15px;
+        }
+        #howToPlay ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            flex-grow: 1; 
+        }
+        #howToPlay ul li {
+            margin-bottom: 10px;
+            font-size: 0.95em;
+            line-height: 1.5;
+        }
+        #howToPlay ul li strong {
+            color: #f1c40f; 
+            display: inline-block;
+            min-width: 80px; 
+        }
+
+        #twitterLinkContainer { 
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px solid #7f8c8d;
+            text-align: center;
+        }
+        #twitterLinkContainer a {
+            color: #1DA1F2; 
+            text-decoration: none;
+            font-weight: bold;
+            font-size: 0.9em;
+        }
+        #twitterLinkContainer a:hover {
+            text-decoration: underline;
+        }
+
+
+        .gemini-message {
+            font-style: italic;
+            color: #f1c40f; 
+            margin-top: 10px !important;
+            padding: 8px;
+            background-color: rgba(0,0,0,0.2);
+            border-radius: 4px;
+        }
+
+
+        #waveAnnouncement {
+            position: absolute;
+            top: 20%;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(44, 62, 80, 0.85);
+            color: #f1c40f;
+            padding: 15px 25px;
+            border-radius: 8px;
+            font-size: 1.2em;
+            font-weight: bold;
+            text-align: center;
+            z-index: 15; 
+            display: none; 
+            max-width: 80%;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.3);
+        }
+        #waveAnnouncementText {
+            margin: 0;
+        }
+
+        #loadingIndicator {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(241, 196, 15, 0.8); 
+            color: #2c3e50; 
+            padding: 8px 15px;
+            border-radius: 5px;
+            font-size: 0.9em;
+            z-index: 20; 
+            display: none; 
+        }
+
+        #buyMemeLink {
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: #e67e22; 
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: bold;
+            transition: background-color 0.2s ease;
+        }
+        #buyMemeLink:hover {
+            background-color: #d35400; 
+        }
+
+        @media (min-width: 1024.01px) {
+            #gameArea {
+                flex-grow: 1; 
+                flex-shrink: 1; 
+                min-width: 0; 
+            }
+        }
+
+
+        @media (max-width: 1024px) { 
+            #pageWrapper {
+                flex-direction: column; 
+                align-items: center; 
+            }
+            #howToPlay {
+                width: 90%; 
+                max-width: 500px; 
+                margin-top: 20px; 
+                min-height: auto; 
+                align-self: center; 
+            }
+            #gameArea {
+                width: 90%; 
+                max-width: 700px; 
+                align-self: center; 
+            }
+        }
+
+        @media (max-width: 768px) {
+            #topLeftUI, #bottomLeftUI { font-size: 0.8em; }
+            #topLeftUI, #topRightUI, #bottomLeftUI, #bottomRightUI { padding: 6px; gap: 8px; }
+            #healthBarContainer { width: 120px; height: 16px; }
+            #gameOverScreen { padding: 25px; min-width: 90%; max-width: 400px;} 
+            #gameOverScreen button, #gameOverScreen a { font-size: 1em; padding: 10px 20px;}
+            #muteButton { width: 40px; height: 40px; font-size: 1.3em;}
+            #waveAnnouncement { font-size: 1em; padding: 10px 20px; top: 15%;}
+        }
+
+        @media (max-width: 480px) {
+            body { padding: 5px; }
+            #pageWrapper { gap: 15px; }
+            #topLeftUI, #bottomLeftUI { font-size: 0.75em; }
+            #scoreDisplay, #waveDisplay, #playerHealthText, #reloadIndicator { padding: 4px 8px;}
+            #healthBarContainer { width: 100px; height: 14px; }
+            #gameOverScreen h2 { font-size: 1.6em; } 
+            #gameOverScreen p { font-size: 0.9em; }
+            #gameOverScreen button, #gameOverScreen a { font-size: 0.9em; padding: 8px 15px;}
+            #howToPlay { padding: 15px; }
+            #howToPlay h2 { font-size: 1.3em; }
+            #howToPlay ul li { font-size: 0.9em; }
+            #howToPlay ul li strong { min-width: 70px; } 
+            #waveAnnouncement { font-size: 0.9em; padding: 8px 15px; top: 10%;}
+            #buyMemeLink { font-size: 0.9em; padding: 8px 15px;}
+        }
+    </style>
+</head>
+<body>
+    <div id="pageWrapper">
+        <div id="gameArea"> <div id="gameContainer">
+                <canvas id="gameCanvas"></canvas>
+
+                <div id="uiOverlay">
+                    <div id="topLeftUI">
+                        <div id="scoreDisplay">Score: 0</div>
+                        <div id="waveDisplay">Wave: 0</div>
+                    </div>
+                    <div id="topRightUI">
+                        </div>
+                    <div id="bottomLeftUI">
+                        <div id="healthBarContainer">
+                            <div id="healthBarFill"></div>
+                        </div>
+                        <div id="playerHealthText">HP: 100/100</div>
+                        <div id="reloadIndicator"></div>
+                    </div>
+                    <div id="bottomRightUI">
+                        <button id="muteButton" aria-label="Mute">🔇</button>
+                    </div>
+                </div>
+
+                <div id="waveAnnouncement">
+                    <p id="waveAnnouncementText"></p>
+                </div>
+
+                <div id="loadingIndicator" style="display: none;">
+                    <p>✨ Generating Wisdom...</p>
+                </div>
+
+                <div id="gameOverScreen"> <h2>Game Over</h2>
+                    <p id="finalScore">You survived 0 waves and killed 0 zombies.</p>
+                    <p id="finalWave">Final Wave: 0</p>
+                    <p id="geminiGameOverMessage" class="gemini-message"></p>
+                    <button id="restartGameButton">Play Again</button>
+                    <a id="twitterShareButton" href="#" target="_blank" rel="noopener noreferrer">Share on X</a>
+                </div>
+            </div>
+            <a id="buyMemeLink" href="#">Buy this meme here:</a>
+            </div>
+
+        <div id="howToPlay">
+            <div> <h2>How to Play</h2>
+                <ul>
+                    <li><strong>Move:</strong> WASD</li>
+                    <li><strong>Jump:</strong> Spacebar or Up Arrow</li>
+                    <li><strong>Crouch:</strong> Ctrl or Down Arrow</li>
+                    <li><strong>Shoot:</strong> Left Click or Spacebar</li>
+                    <li><strong>Reload:</strong> 'R' key (or automatic)</li>
+                    <li><strong>Goal:</strong> Survive as many zombie waves as possible!</li>
+                    <li><strong>Boss:</strong> Appears every 4 waves!</li>
+                </ul>
+            </div>
+            <div id="twitterLinkContainer">
+                 <a href="#" target="_blank" rel="noopener noreferrer">Follow us on Twitter</a>
+            </div>
+        </div>
+    </div>
+
+    <script type="text/javascript">
+    // script.js
+    document.addEventListener('DOMContentLoaded', () => {
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        const scoreDisplay = document.getElementById('scoreDisplay');
+        const waveDisplay = document.getElementById('waveDisplay');
+        const healthBarFill = document.getElementById('healthBarFill');
+        const playerHealthText = document.getElementById('playerHealthText');
+        const reloadIndicator = document.getElementById('reloadIndicator');
+        
+        const waveAnnouncementDiv = document.getElementById('waveAnnouncement');
+        const waveAnnouncementText = document.getElementById('waveAnnouncementText');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+
+        const gameOverScreen = document.getElementById('gameOverScreen');
+        const finalScoreDisplay = document.getElementById('finalScore');
+        const finalWaveDisplay = document.getElementById('finalWave');
+        const geminiGameOverMessageElement = document.getElementById('geminiGameOverMessage');
+        const restartGameButton = document.getElementById('restartGameButton');
+        const twitterShareButton = document.getElementById('twitterShareButton');
+        const muteButton = document.getElementById('muteButton');
+
+        // --- Audio Objects ---
+        const jumpSound = new Audio('sounds/jump.mp3');
+        const shootSound = new Audio('sounds/shoot.mp3');
+        const playerDeathSound = new Audio('sounds/player_death.mp3');
+        const playerHitSound = new Audio('sounds/player_hit.mp3'); 
+        const zombieDeathSound = new Audio('sounds/zombie_death.mp3');
+        const backgroundMusic = new Audio('sounds/background.mp3');
+        // const bossSpawnSound = new Audio('sounds/boss_spawn.mp3');
+        // const miniZombieLaunchSound = new Audio('sounds/mini_launch.mp3');
+        // const miniZombieExplodeSound = new Audio('sounds/mini_explode.mp3');
+
+
+        backgroundMusic.loop = true;
+        backgroundMusic.volume = 0.3;
+
+        let audioUnlocked = false; 
+
+        let gameRunning = false;
+        let score = 0;
+        let wavesSurvived = 0;
+        let zombiesKilledTotal = 0;
+        let animationFrameId;
+        let isMuted = false;
+
+        // Game constants
+        const PLAYER_WIDTH = 30; 
+        const PLAYER_HEAD_RADIUS = 10; 
+        const PLAYER_EYE_RADIUS = 4;  
+        const PLAYER_BODY_HEIGHT_NORMAL = 40; 
+        const PLAYER_BODY_HEIGHT_CROUCH = 20;
+        const PLAYER_SPEED = 3.5; 
+        const JUMP_STRENGTH = 13;
+        const GRAVITY = 0.65;
+        const PLAYER_MAX_HEALTH = 100; 
+        const BULLET_SPEED = 8;
+        const BULLET_RADIUS = 4; 
+        const BULLET_DAMAGE = 30; 
+        const INITIAL_RELOAD_DURATION = 5000; 
+        const INITIAL_CLIP_SIZE = 8; 
+        let currentMaxClipSize = INITIAL_CLIP_SIZE; 
+        let currentReloadDuration = INITIAL_RELOAD_DURATION; 
+        const FIRE_RATE = 180; 
+
+        const ZOMBIE_WIDTH = 30; 
+        const ZOMBIE_HEAD_RADIUS = 7;
+        const ZOMBIE_BODY_HEIGHT = 38; 
+        const FLYING_ZOMBIE_BODY_HEIGHT = 30; 
+        const FLYING_ZOMBIE_HEAD_RADIUS = 6;
+        const ZOMBIE_INITIAL_SPEED = 0.6;
+        const FLYING_ZOMBIE_SPEED_MULTIPLIER = 1.1; 
+        const ZOMBIE_INITIAL_HEALTH = 60; // Base health for normal zombies
+        const FLYING_ZOMBIE_HEALTH_MULTIPLIER = 0.8; 
+        const ZOMBIE_ATTACK_DAMAGE = 12;
+        const ZOMBIE_ATTACK_COOLDOWN = 1200; 
+
+        // Boss Constants
+        const BOSS_BASE_HEALTH = ZOMBIE_INITIAL_HEALTH * 3; // Boss health will scale
+        const BOSS_WIDTH = ZOMBIE_WIDTH * 2.8; 
+        const BOSS_BODY_HEIGHT = ZOMBIE_BODY_HEIGHT * 1.8;
+        const BOSS_HEAD_RADIUS = ZOMBIE_HEAD_RADIUS * 2.2;
+        const BOSS_EAR_WIDTH = BOSS_HEAD_RADIUS * 0.5;
+        const BOSS_EAR_HEIGHT = BOSS_HEAD_RADIUS * 0.7;
+        const BOSS_MUZZLE_WIDTH = BOSS_HEAD_RADIUS * 0.8;
+        const BOSS_MUZZLE_HEIGHT = BOSS_HEAD_RADIUS * 0.5;
+        const BOSS_NOSE_RADIUS = BOSS_HEAD_RADIUS * 0.15;
+        const BOSS_EYE_RADIUS = BOSS_HEAD_RADIUS * 0.2;
+        const BOSS_TAIL_LENGTH = BOSS_WIDTH * 0.4;
+        const BOSS_TAIL_WIDTH = BOSS_WIDTH * 0.15;
+
+        const BOSS_SPEED = ZOMBIE_INITIAL_SPEED * 0.5; 
+        const BOSS_MINI_ZOMBIE_LAUNCH_COOLDOWN_MIN = 2800; 
+        const BOSS_MINI_ZOMBIE_LAUNCH_COOLDOWN_MAX = 5000; 
+        const MINI_ZOMBIE_PROJECTILE_RADIUS = 8;
+        const MINI_ZOMBIE_PROJECTILE_SPEED = 2.5;
+        const MINI_ZOMBIE_PROJECTILE_HEALTH = 1; 
+        const MINI_ZOMBIE_PROJECTILE_DAMAGE = 10; 
+        const EXPLOSION_RADIUS = 40;
+        const EXPLOSION_DURATION = 300; 
+        const PLATFORM_WIDTH = 120; 
+        const PLATFORM_HEIGHT = 20; 
+        const BOSS_ATTACK_DAMAGE = 18; 
+        const BOSS_ATTACK_COOLDOWN = 800; 
+        const BOSS_INVULNERABLE_TIME = 200; 
+
+
+        // Game objects
+        let player;
+        let bullets = [];
+        let zombies = [];
+        let bloodSplatters = []; 
+        let miniZombieProjectiles = [];
+        let explosions = [];
+        let platforms = [];
+        let keys = {}; 
+
+        let currentWave = 0;
+        let zombiesToSpawn = 0;
+        let zombiesSpawnedThisWave = 0;
+        let timeSinceLastZombieSpawn = 0;
+        const ZOMBIE_SPAWN_INTERVAL = 1800; 
+        const FLYING_ZOMBIE_CHANCE = 0.24; 
+        
+        let isBossWave = false; 
+        let currentBoss = null; 
+        let bossDefeatCount = 0; 
+
+        // --- Gemini API Function ---
+        async function fetchGeminiResponse(prompt) {
+            loadingIndicator.style.display = 'block';
+            const apiKey = ""; 
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+            let chatHistory = [{ role: "user", parts: [{ text: prompt }] }];
+            const payload = { contents: chatHistory };
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (!response.ok) {
+                    const errorData = await response.json(); console.error("Gemini API Error:", errorData);
+                    loadingIndicator.style.display = 'none'; return "The zombies ate the new transmission..."; 
+                }
+                const result = await response.json(); loadingIndicator.style.display = 'none';
+                if (result.candidates && result.candidates.length > 0 &&
+                    result.candidates[0].content && result.candidates[0].content.parts &&
+                    result.candidates[0].content.parts.length > 0) {
+                    return result.candidates[0].content.parts[0].text;
+                } else { console.error("Unexpected Gemini API response structure:", result); return "Static in the comms..."; }
+            } catch (error) { console.error("Error calling Gemini API:", error); loadingIndicator.style.display = 'none'; return "The radio tower is down..."; }
+        }
+
+        // --- Audio Unlock Function ---
+        function unlockAudioContext() {
+            if (audioUnlocked) return;
+            audioUnlocked = true;
+            console.log("Audio context unlocked by user interaction.");
+            [jumpSound, shootSound, playerDeathSound, playerHitSound, zombieDeathSound, backgroundMusic].forEach(sound => {
+                sound.load(); 
+            });
+            if (!isMuted && backgroundMusic.paused && gameRunning) { 
+                backgroundMusic.play().catch(error => {
+                    console.warn("Background music autoplay still prevented after unlock.", error);
+                });
+            }
+        }
+
+        function resizeCanvas() {
+            const gameAreaEl = document.getElementById('gameArea');
+            const gameContainerEl = document.getElementById('gameContainer');
+            let actualGameAreaWidth = gameAreaEl.offsetWidth;
+            const aspectRatio = 16 / 9;
+            let newCanvasWidth = Math.min(actualGameAreaWidth, 1280); 
+            let newCanvasHeight = newCanvasWidth / aspectRatio;
+            const maxGameHeight = window.innerHeight * (window.innerWidth <= 1024 ? 0.65 : 0.85); 
+            if (newCanvasHeight > maxGameHeight) { newCanvasHeight = maxGameHeight; newCanvasWidth = newCanvasHeight * aspectRatio; }
+            newCanvasWidth = Math.min(newCanvasWidth, actualGameAreaWidth); 
+            gameContainerEl.style.width = `${newCanvasWidth}px`; gameContainerEl.style.height = `${newCanvasHeight}px`;
+            canvas.width = newCanvasWidth; canvas.height = newCanvasHeight;
+            if (player) { 
+                 const groundLevel = canvas.height - 10;
+                 player.x = canvas.width / 2; 
+                 player.y = groundLevel;      
+                 if (player.y - player.getTotalHeight() < 0) { player.y = player.getTotalHeight(); if (player.velocityY < 0) player.velocityY = 0; }
+            }
+        }
+
+        class Player {
+            constructor(x, y) {
+                this.x = x; this.y = y; this.width = PLAYER_WIDTH; 
+                this.speed = PLAYER_SPEED; this.velocityY = 0;
+                this.isJumping = false; this.isCrouching = false;
+                this.maxHealth = PLAYER_MAX_HEALTH; 
+                this.health = this.maxHealth;       
+                this.isReloading = false; this.reloadTimer = 0;
+                this.currentClip = currentMaxClipSize; 
+                this.lastShotTime = 0;
+                this.facingRight = true; 
+                this.jumpKeyJustPressed = false; 
+            }
+            getBodyHeight() { return this.isCrouching ? PLAYER_BODY_HEIGHT_CROUCH : PLAYER_BODY_HEIGHT_NORMAL; }
+            getTotalHeight() { return this.getBodyHeight() + PLAYER_HEAD_RADIUS; } 
+            
+            draw(ctx) {
+                const bodyHeight = this.getBodyHeight(); 
+                const bodyActualY = this.y - bodyHeight; 
+                const headCenterX = this.x;
+                const headCenterY = bodyActualY - PLAYER_HEAD_RADIUS / 1.5; 
+
+                ctx.save(); 
+                if (!this.facingRight) { ctx.translate(this.x, 0); ctx.scale(-1, 1); ctx.translate(-this.x, 0); }
+                
+                ctx.fillStyle = this.isReloading ? '#f1c40f' : (this.isCrouching ? '#111111' : '#000000'); 
+                ctx.fillRect(this.x - this.width / 2, bodyActualY, this.width, bodyHeight);
+                
+                ctx.fillStyle = '#2ecc71'; 
+                ctx.beginPath();
+                ctx.arc(headCenterX, headCenterY, PLAYER_HEAD_RADIUS, 0, Math.PI * 2);
+                ctx.fill();
+
+                const eyeOffsetX = PLAYER_HEAD_RADIUS * 0.5;
+                const eyeOffsetY = PLAYER_HEAD_RADIUS * 0.4;
+                ctx.fillStyle = '#98FB98'; 
+                ctx.beginPath();
+                ctx.arc(headCenterX - eyeOffsetX, headCenterY - eyeOffsetY, PLAYER_EYE_RADIUS, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.beginPath();
+                ctx.arc(headCenterX + eyeOffsetX, headCenterY - eyeOffsetY, PLAYER_EYE_RADIUS, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = '#000000';
+                ctx.beginPath();
+                ctx.arc(headCenterX - eyeOffsetX, headCenterY - eyeOffsetY, PLAYER_EYE_RADIUS * 0.4, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.beginPath();
+                ctx.arc(headCenterX + eyeOffsetX, headCenterY - eyeOffsetY, PLAYER_EYE_RADIUS * 0.4, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.strokeStyle = '#FF0000'; 
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                const mouthY = headCenterY + PLAYER_HEAD_RADIUS * 0.3;
+                const mouthWidth = PLAYER_HEAD_RADIUS * 0.7;
+                if (this.isReloading) { 
+                    ctx.moveTo(headCenterX - mouthWidth / 2, mouthY + PLAYER_HEAD_RADIUS * 0.1);
+                    ctx.quadraticCurveTo(headCenterX, mouthY - PLAYER_HEAD_RADIUS * 0.15, headCenterX + mouthWidth / 2, mouthY + PLAYER_HEAD_RADIUS * 0.1);
+                } else { 
+                    ctx.moveTo(headCenterX - mouthWidth / 2, mouthY);
+                    ctx.quadraticCurveTo(headCenterX, mouthY + PLAYER_HEAD_RADIUS * 0.25, headCenterX + mouthWidth / 2, mouthY);
+                }
+                ctx.stroke();
+
+                const gunYPos = bodyActualY + bodyHeight * 0.4;
+                ctx.fillStyle = '#7f8c8d'; const gunW = 15; const gunH = 6;
+                ctx.fillRect(this.x + this.width / 2 - gunW, gunYPos - gunH / 2, gunW, gunH); 
+                
+                ctx.restore(); 
+            }
+
+            update() {
+                if (keys['a'] && (this.x - this.width / 2) > 0) { this.x -= this.speed; this.facingRight = false; }
+                if (keys['d'] && (this.x + this.width / 2) < canvas.width) { this.x += this.speed; this.facingRight = true; }
+                
+                const prevTotalHeight = this.getTotalHeight();
+                if (keys['control'] || keys['arrowdown']) { this.isCrouching = true; } else { this.isCrouching = false; }
+                const newTotalHeight = this.getTotalHeight();
+                if (!this.isJumping) { this.y += (prevTotalHeight - newTotalHeight); }
+
+                const jumpIntent = keys['arrowup'] || keys[' ']; 
+                if (jumpIntent && !this.jumpKeyJustPressed && !this.isJumping && !this.isCrouching) {
+                    this.velocityY = -JUMP_STRENGTH; this.isJumping = true; this.jumpKeyJustPressed = true;
+                    if (!isMuted && audioUnlocked) { jumpSound.currentTime = 0; jumpSound.play().catch(e => console.error("Error playing jump sound:", e)); }
+                }
+                if (!jumpIntent) { 
+                     this.jumpKeyJustPressed = false; 
+                }
+
+                this.y += this.velocityY; this.velocityY += GRAVITY;
+                const groundLevel = canvas.height - 10; 
+                let onPlatform = false;
+                if (isBossWave || (!isBossWave && currentWave >=3 && platforms.length > 0) ) { 
+                    for (const platform of platforms) {
+                        if (this.x + this.width / 2 > platform.x && 
+                            this.x - this.width / 2 < platform.x + platform.width &&
+                            this.y >= platform.y && 
+                            this.y - this.velocityY <= platform.y && 
+                            this.velocityY >= 0) { 
+                            
+                            this.y = platform.y; 
+                            this.velocityY = 0;
+                            this.isJumping = false;
+                            onPlatform = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (!onPlatform && this.y >= groundLevel) { 
+                    this.y = groundLevel; this.velocityY = 0; this.isJumping = false; 
+                }
+                if ((this.y - this.getTotalHeight()) < 0) { this.y = this.getTotalHeight(); this.velocityY = Math.max(0, this.velocityY); }
+                
+                if (this.isReloading) {
+                    this.reloadTimer -= 1000/60; 
+                    if (this.reloadTimer <= 0) {
+                        this.isReloading = false; this.currentClip = currentMaxClipSize; 
+                        reloadIndicator.textContent = `Ammo: ${this.currentClip}/${currentMaxClipSize}`;
+                    } else {
+                        const p = (currentReloadDuration - this.reloadTimer) / currentReloadDuration;
+                        const bL = 10;
+                        const fL = Math.floor(p * bL), eL = bL - fL;
+                        reloadIndicator.textContent = `Reload: [${'█'.repeat(fL)}${'_'.repeat(eL)}]`;
+                    }
+                } else if (this.currentClip === 0 && !this.isReloading) { this.startReload(); }
+            }
+
+            attack() { 
+                if (this.isReloading || this.currentClip === 0 || Date.now() - this.lastShotTime < FIRE_RATE) return;
+                const bodyH = this.getBodyHeight(), bodyAY = this.y - bodyH;
+                const gunVY = bodyAY + bodyH * 0.4; 
+                const gunTipX = this.x + (this.facingRight ? this.width/2 + 7.5 : -this.width/2 - 7.5); 
+                const angle = Math.atan2(lastMouseY - gunVY, lastMouseX - gunTipX); 
+                bullets.push(new Bullet(gunTipX, gunVY, angle)); this.currentClip--; this.lastShotTime = Date.now();
+                if (!isMuted && audioUnlocked) { shootSound.currentTime = 0; shootSound.play().catch(e => console.error("Error playing shoot sound:", e)); }
+                if (this.currentClip > 0) { reloadIndicator.textContent = `Ammo: ${this.currentClip}/${currentMaxClipSize}`; } 
+                else { this.startReload(); }
+            }
+            
+            startReload() { 
+                if (this.isReloading || this.currentClip === currentMaxClipSize) return; 
+                this.isReloading = true; 
+                this.reloadTimer = currentReloadDuration; 
+                reloadIndicator.textContent = `Reload: [${'_'.repeat(10)}]`;
+            }
+            takeDamage(amount) { 
+                this.health -= amount; if (this.health < 0) this.health = 0;
+                if (!isMuted && audioUnlocked && this.health > 0 ) { 
+                    playerHitSound.currentTime = 0; 
+                    playerHitSound.play().catch(e => console.error("Error playing player hit sound:", e));
+                }
+                updateHealthBar(); if (this.health === 0) gameOver();
+            }
+        }
+
+        class Bullet { 
+            constructor(x,y,angle){this.x=x;this.y=y;this.radius=BULLET_RADIUS;this.speed=BULLET_SPEED;this.velocityX=Math.cos(angle)*this.speed;this.velocityY=Math.sin(angle)*this.speed;this.color='#f1c40f';}
+            draw(ctx){ctx.beginPath();ctx.arc(this.x,this.y,this.radius,0,Math.PI*2);ctx.fillStyle=this.color;ctx.fill();ctx.closePath();}
+            update(){this.x+=this.velocityX;this.y+=this.velocityY;}
+        }
+        
+        class BloodSplatter {
+            constructor(x, y) {
+                this.x = x; this.y = y; this.radius = Math.random() * 10 + 10; 
+                this.color = `rgba(180, 0, 0, ${Math.random() * 0.5 + 0.3})`; 
+                this.duration = 3000; this.createdAt = Date.now();
+            }
+            draw(ctx) {
+                const aliveTime = Date.now() - this.createdAt; const opacity = 1 - (aliveTime / this.duration);
+                if (opacity <= 0) return;
+                ctx.save(); ctx.globalAlpha = Math.max(0, opacity); ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2); ctx.fillStyle = this.color; ctx.fill();
+                ctx.restore();
+            }
+            update() { return (Date.now() - this.createdAt) < this.duration; }
+        }
+
+        class MiniZombieProjectile {
+            constructor(x, y, targetX, targetY) {
+                this.x = x; this.y = y; this.radius = MINI_ZOMBIE_PROJECTILE_RADIUS;
+                this.color = '#D32F2F'; 
+                this.health = MINI_ZOMBIE_PROJECTILE_HEALTH;
+                const aimOffsetX = (targetX - x) * 0.1; 
+                const angle = Math.atan2(targetY - y, (targetX + aimOffsetX) - x);
+                this.velocityX = Math.cos(angle) * MINI_ZOMBIE_PROJECTILE_SPEED;
+                this.velocityY = Math.sin(angle) * MINI_ZOMBIE_PROJECTILE_SPEED + 0.5; 
+            }
+            draw(ctx) {
+                ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = this.color; ctx.fill();
+                ctx.strokeStyle = '#7B1FA2'; ctx.lineWidth = 1; ctx.stroke(); 
+                ctx.closePath();
+            }
+            update() {
+                this.x += this.velocityX;
+                this.y += this.velocityY;
+                this.velocityY += GRAVITY * 0.05; 
+            }
+            takeDamage(amount) {
+                this.health -= amount;
+            }
+        }
+
+        class Explosion {
+            constructor(x, y) {
+                this.x = x; this.y = y; this.radius = EXPLOSION_RADIUS / 3; 
+                this.maxRadius = EXPLOSION_RADIUS;
+                this.duration = EXPLOSION_DURATION;
+                this.createdAt = Date.now();
+                this.color = `rgba(255, 100, 0, 0.8)`; 
+            }
+            draw(ctx) {
+                const aliveTime = Date.now() - this.createdAt;
+                const progress = aliveTime / this.duration;
+                if (progress > 1) return;
+
+                const currentRadius = this.radius + (this.maxRadius - this.radius) * progress;
+                const opacity = 1 - progress;
+
+                ctx.save();
+                ctx.globalAlpha = Math.max(0, opacity);
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, currentRadius, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.fill();
+                for (let i = 0; i < 5; i++) {
+                    ctx.beginPath();
+                    ctx.arc(this.x + (Math.random() - 0.5) * currentRadius * 1.5, 
+                              this.y + (Math.random() - 0.5) * currentRadius * 1.5, 
+                              Math.random() * 3 + 1, 0, Math.PI * 2);
+                    ctx.fillStyle = `rgba(255, ${100 + Math.random()*100}, 0, ${opacity * 0.7})`;
+                    ctx.fill();
+                }
+                ctx.restore();
+            }
+            update() {
+                return (Date.now() - this.createdAt) < this.duration;
+            }
+        }
+        
+        class Platform {
+            constructor(x, y, width, height) {
+                this.x = x; 
+                this.y = y; 
+                this.width = width; 
+                this.height = height;
+                this.color = '#607D8B'; 
+            }
+            draw(ctx) {
+                ctx.fillStyle = this.color;
+                ctx.fillRect(this.x, this.y, this.width, this.height); 
+                ctx.strokeStyle = '#37474F';
+                ctx.strokeRect(this.x, this.y, this.width, this.height);
+            }
+        }
+
+
+        class Zombie { 
+            constructor(x,y,s,h,type='ground'){this.x=x;this.y=y;this.width=ZOMBIE_WIDTH;this.type=type;this.speed=s*(type==='flying'?FLYING_ZOMBIE_SPEED_MULTIPLIER:1);this.health=h*(type==='flying'?FLYING_ZOMBIE_HEALTH_MULTIPLIER:1);this.maxHealth=this.health;this.isAttacking=false;this.attackCooldownTimer=0;this.facingRight=true; }
+            getBodyHeight(){return this.type==='flying'?FLYING_ZOMBIE_BODY_HEIGHT:ZOMBIE_BODY_HEIGHT;}
+            getHeadRadius(){return this.type==='flying'?FLYING_ZOMBIE_HEAD_RADIUS:ZOMBIE_HEAD_RADIUS;}
+            getTotalHeight(){return this.getBodyHeight()+this.getHeadRadius();}
+            draw(ctx){const bH=this.getBodyHeight(),hR=this.getHeadRadius(),bAY=this.y-bH,hAY=bAY-hR/2;ctx.save();if(!this.facingRight){ctx.translate(this.x,0);ctx.scale(-1,1);ctx.translate(-this.x,0);}
+            let bC='#27ae60',hC='#1e8449';if(this.type==='flying'){bC='#8e44ad';hC='#56126E';}
+            ctx.fillStyle=bC;ctx.fillRect(this.x-this.width/2,bAY,this.width,bH);ctx.fillStyle=hC;ctx.beginPath();ctx.arc(this.x,hAY,hR,0,Math.PI*2);ctx.fill();
+            if(this.type==='flying'){ctx.fillStyle='#71368A';const wW=this.width*0.8,wH=bH*0.3,wY=bAY+bH*0.3;ctx.fillRect(this.x-this.width/2-wW,wY,wW,wH);ctx.fillRect(this.x+this.width/2,wY,wW,wH);}
+            ctx.restore();if(this.health<this.maxHealth&&this.health>0){const bW=this.width*1.2,bX=this.x-bW/2,bY=bAY-hR-8;ctx.fillStyle='#c0392b';ctx.fillRect(bX,bY,bW,5);ctx.fillStyle='#e74c3c';ctx.fillRect(bX,bY,bW*(this.health/this.maxHealth),5);}}
+            
+            update(playerInstance) {
+                const dx = playerInstance.x - this.x;
+                if (dx > 0) this.facingRight = true; else if (dx < 0) this.facingRight = false;
+                if (this.type === 'flying') {
+                    const targetPlayerCenterY = playerInstance.y - playerInstance.getTotalHeight() / 2;
+                    const currentZombieCenterY = this.y - this.getTotalHeight() / 2;
+                    const dy = targetPlayerCenterY - currentZombieCenterY;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    if (distance > this.width) { 
+                        this.x += (dx / (distance || 1)) * this.speed;
+                        this.y += (dy / (distance || 1)) * this.speed * 0.7; 
+                    }
+                    const flyMinY = this.getTotalHeight() + 10; const flyMaxY = canvas.height - 50; 
+                    this.y = Math.max(flyMinY, Math.min(this.y, flyMaxY));
+                } else { 
+                    const distance = Math.abs(dx);
+                    if (distance > this.width / 2) { this.x += (dx / (distance || 1)) * this.speed; }
+                    const gL = canvas.height - 10; if (this.y < gL) this.y += GRAVITY * 0.5; if (this.y > gL) this.y = gL;
+                }
+                if (this.attackCooldownTimer > 0) this.attackCooldownTimer -= 1000 / 60;
+                const playerRect = { x: playerInstance.x - playerInstance.width / 2, y: playerInstance.y - playerInstance.getTotalHeight(), width: playerInstance.width, height: playerInstance.getTotalHeight() };
+                const zombieRect = { x: this.x - this.width / 2, y: this.y - this.getTotalHeight(), width: this.width, height: this.getTotalHeight() };
+                if (checkCollision(zombieRect, playerRect) && this.attackCooldownTimer <= 0) {
+                    this.isAttacking = true; playerInstance.takeDamage(ZOMBIE_ATTACK_DAMAGE);
+                    this.attackCooldownTimer = ZOMBIE_ATTACK_COOLDOWN;
+                } else this.isAttacking = false;
+            }
+            takeDamage(a){this.health-=a;}
+        }
+
+        class BossZombie {
+            constructor(x, y, health) {
+                this.x = x; 
+                this.y = y; 
+                this.width = BOSS_WIDTH;
+                this.bodyHeight = BOSS_BODY_HEIGHT;
+                this.headRadius = BOSS_HEAD_RADIUS;
+                this.eyeRadius = BOSS_EYE_RADIUS;
+                this.health = health; this.maxHealth = health;
+                this.speed = BOSS_SPEED;
+                this.facingRight = Math.random() < 0.5;
+                this.launchCooldown = BOSS_MINI_ZOMBIE_LAUNCH_COOLDOWN_MIN + Math.random() * (BOSS_MINI_ZOMBIE_LAUNCH_COOLDOWN_MAX - BOSS_MINI_ZOMBIE_LAUNCH_COOLDOWN_MIN);
+                this.targetY = y - this.getTotalHeight() / 2; 
+                this.approachCooldown = 2000 + Math.random() * 2000; 
+                this.movementTargetX = this.x; 
+                this.attackCooldownTimer = 0; 
+                this.isAttacking = false;
+                this.invulnerable = false; 
+                this.invulnerableTime = BOSS_INVULNERABLE_TIME; 
+                this.invulnerabilityTimer = 0;
+            }
+            getTotalHeight() { return this.bodyHeight + this.headRadius * 1.6; } 
+            
+            draw(ctx) {
+                const bodyActualY = this.y - this.bodyHeight;
+                const headCenterX = this.x;
+                const headCenterY = bodyActualY - this.headRadius * 0.6;
+
+                ctx.save();
+                if (!this.facingRight) { ctx.translate(this.x, 0); ctx.scale(-1, 1); ctx.translate(-this.x, 0); }
+                
+                ctx.fillStyle = '#D48C00'; 
+                ctx.beginPath();
+                const tailBaseX = this.x - this.width / 2.1; 
+                const tailBaseY = this.y - this.bodyHeight * 0.4;
+                ctx.moveTo(tailBaseX, tailBaseY);
+                ctx.bezierCurveTo(
+                    tailBaseX - BOSS_TAIL_LENGTH * 0.8, tailBaseY - BOSS_TAIL_WIDTH * 2, 
+                    tailBaseX - BOSS_TAIL_LENGTH * 1.2, tailBaseY + BOSS_TAIL_WIDTH * 1, 
+                    tailBaseX - BOSS_TAIL_LENGTH * 0.7, tailBaseY + BOSS_TAIL_WIDTH * 0.3  
+                );
+                ctx.closePath();
+                ctx.fill();
+
+                ctx.fillStyle = '#F39C12'; 
+                ctx.beginPath();
+                ctx.roundRect(this.x - this.width / 2, bodyActualY, this.width, this.bodyHeight, 20);
+                ctx.fill();
+                ctx.fillStyle = '#FFF3E0'; 
+                ctx.beginPath();
+                ctx.roundRect(this.x - this.width / 2.8, bodyActualY + this.bodyHeight * 0.15, this.width / 1.4, this.bodyHeight * 0.7, 15);
+                ctx.fill();
+
+                ctx.fillStyle = '#F39C12';
+                ctx.beginPath();
+                ctx.arc(headCenterX, headCenterY, this.headRadius, 0, Math.PI * 2);
+                ctx.fill();
+                
+                ctx.fillStyle = '#F0A500'; 
+                const earXOffset = this.headRadius * 0.6;
+                const earTopY = headCenterY - this.headRadius * 0.5;
+                ctx.beginPath();
+                ctx.moveTo(headCenterX - earXOffset * 0.8, earTopY);
+                ctx.lineTo(headCenterX - earXOffset * 0.8 - BOSS_EAR_WIDTH / 2, earTopY - BOSS_EAR_HEIGHT);
+                ctx.lineTo(headCenterX - earXOffset * 0.8 + BOSS_EAR_WIDTH / 2, earTopY);
+                ctx.closePath();
+                ctx.fill();
+                ctx.beginPath();
+                ctx.moveTo(headCenterX + earXOffset, earTopY);
+                ctx.lineTo(headCenterX + earXOffset - BOSS_EAR_WIDTH / 2, earTopY - BOSS_EAR_HEIGHT);
+                ctx.lineTo(headCenterX + earXOffset + BOSS_EAR_WIDTH / 2, earTopY);
+                ctx.closePath();
+                ctx.fill();
+                
+                ctx.fillStyle = '#FFF3E0';
+                ctx.beginPath();
+                ctx.ellipse(headCenterX, headCenterY + this.headRadius * 0.25, BOSS_MUZZLE_WIDTH * 0.6, BOSS_MUZZLE_HEIGHT * 0.6, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = '#5D4037'; 
+                ctx.beginPath();
+                ctx.arc(headCenterX, headCenterY + this.headRadius * 0.2, BOSS_NOSE_RADIUS, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = '#8D6E63'; 
+                ctx.lineWidth = Math.max(1, this.headRadius * 0.04);
+                ctx.beginPath();
+                const mouthActualY = headCenterY + this.headRadius * 0.4;
+                const mouthActualWidth = this.headRadius * 0.3;
+                ctx.moveTo(headCenterX - mouthActualWidth, mouthActualY);
+                ctx.quadraticCurveTo(headCenterX, mouthActualY + this.headRadius * 0.1, headCenterX + mouthActualWidth, mouthActualY);
+                ctx.stroke();
+
+                ctx.fillStyle = '#FFFFFF'; 
+                ctx.beginPath(); ctx.arc(headCenterX - this.headRadius * 0.35, headCenterY - this.headRadius * 0.1, this.eyeRadius, 0, Math.PI*2); ctx.fill();
+                ctx.beginPath(); ctx.arc(headCenterX + this.headRadius * 0.35, headCenterY - this.headRadius * 0.1, this.eyeRadius, 0, Math.PI*2); ctx.fill();
+                ctx.fillStyle = '#000000'; 
+                ctx.beginPath(); ctx.arc(headCenterX - this.headRadius * 0.35, headCenterY - this.headRadius * 0.1, this.eyeRadius * 0.5, 0, Math.PI*2); ctx.fill();
+                ctx.beginPath(); ctx.arc(headCenterX + this.headRadius * 0.35, headCenterY - this.headRadius * 0.1, this.eyeRadius * 0.5, 0, Math.PI*2); ctx.fill();
+                
+                ctx.restore();
+
+                if (this.health > 0) {
+                    const barW = canvas.width * 0.6; const barH = 20;
+                    const barX = canvas.width / 2 - barW / 2; const barY = 20;
+                    ctx.fillStyle = '#555'; ctx.fillRect(barX, barY, barW, barH);
+                    ctx.fillStyle = '#D32F2F'; ctx.fillRect(barX, barY, barW * (this.health / this.maxHealth), barH);
+                    ctx.strokeStyle = '#FFF'; ctx.strokeRect(barX, barY, barW, barH);
+                    ctx.fillStyle = '#FFF'; ctx.textAlign = 'center'; ctx.font = '14px Arial';
+                    ctx.fillText(`SHIBA BOSS HP: ${Math.ceil(this.health)} / ${this.maxHealth}`, canvas.width / 2, barY + barH / 1.5);
+                }
+            }
+            update(playerInstance) {
+                const deltaTime = 1000 / 60;
+                if (this.invulnerabilityTimer > 0) this.invulnerabilityTimer -= deltaTime;
+                else this.invulnerable = false;
+
+                this.approachCooldown -= deltaTime;
+
+                if (this.approachCooldown <= 0) {
+                    if (Math.random() < 0.75) { 
+                        this.movementTargetX = playerInstance.x;
+                        this.targetY = playerInstance.y - playerInstance.getTotalHeight() / 2 + (Math.random() * 60 - 30); 
+                    } else { 
+                        this.movementTargetX = this.x + (Math.random() * 400 - 200);
+                        this.targetY = (this.getTotalHeight() + 20) + Math.random() * (canvas.height * 0.3); 
+                    }
+                    this.movementTargetX = Math.max(this.width / 2, Math.min(this.movementTargetX, canvas.width - this.width / 2));
+                    this.targetY = Math.max(this.getTotalHeight() / 2 + 20, Math.min(this.targetY, canvas.height - this.getTotalHeight() / 2 - 20));
+                    this.approachCooldown = 1000 + Math.random() * 1000; 
+                }
+
+                const dxToTarget = this.movementTargetX - this.x;
+                this.x += dxToTarget * 0.03; 
+                if (Math.abs(dxToTarget) > this.speed) { 
+                    if (dxToTarget > 0) this.facingRight = true; else if (dxToTarget < 0) this.facingRight = false;
+                }
+                
+                if (this.x - this.width / 2 < 0) { this.x = this.width / 2; }
+                if (this.x + this.width / 2 > canvas.width) { this.x = canvas.width - this.width / 2; }
+                
+                const currentCenterY = this.y - this.getTotalHeight() / 2;
+                const dyToTarget = this.targetY - currentCenterY;
+                this.y += dyToTarget * 0.03; 
+                this.y = Math.max(this.getTotalHeight(), Math.min(this.y, canvas.height - 10));
+
+
+                this.launchCooldown -= deltaTime;
+                if (this.launchCooldown <= 0 && playerInstance.health > 0) { 
+                    const mouthY = this.y - this.bodyHeight - this.headRadius * 0.3; 
+                    miniZombieProjectiles.push(new MiniZombieProjectile(this.x, mouthY, playerInstance.x, playerInstance.y - playerInstance.getTotalHeight()/2));
+                    this.launchCooldown = BOSS_MINI_ZOMBIE_LAUNCH_COOLDOWN_MIN + Math.random() * (BOSS_MINI_ZOMBIE_LAUNCH_COOLDOWN_MAX - BOSS_MINI_ZOMBIE_LAUNCH_COOLDOWN_MIN);
+                }
+
+                if (this.attackCooldownTimer > 0) this.attackCooldownTimer -= deltaTime;
+                const playerRect = { x: playerInstance.x - playerInstance.width / 2, y: playerInstance.y - playerInstance.getTotalHeight(), width: playerInstance.width, height: playerInstance.getTotalHeight() };
+                const bossRect = { x: this.x - this.width / 2, y: this.y - this.getTotalHeight(), width: this.width, height: this.getTotalHeight() };
+                if (checkCollision(bossRect, playerRect) && this.attackCooldownTimer <= 0) {
+                    this.isAttacking = true; playerInstance.takeDamage(BOSS_ATTACK_DAMAGE);
+                    this.attackCooldownTimer = BOSS_ATTACK_COOLDOWN;
+                } else {
+                    this.isAttacking = false;
+                }
+            }
+            takeDamage(amount) { 
+                if (this.invulnerable) return;
+                this.health -= amount; 
+                if (this.health < 0) this.health = 0;
+                
+                this.invulnerable = true;
+                this.invulnerabilityTimer = this.invulnerableTime; 
+            }
+        }
+
+
+        function spawnBoss() {
+            console.log(`Wave ${currentWave}: BOSS WAVE INCOMING!`);
+            const bossHealth = BOSS_BASE_HEALTH * (2 ** bossDefeatCount); 
+            currentBoss = new BossZombie(canvas.width / 2, canvas.height - 10 - BOSS_BODY_HEIGHT, bossHealth); 
+            zombiesToSpawn = 0; 
+            zombiesSpawnedThisWave = 0; 
+            platforms = []; 
+            const numPlatforms = 3 + Math.floor(Math.random() * 2); 
+            const platformMinY = canvas.height * 0.35;
+            const platformMaxY = canvas.height - 80 - PLAYER_BODY_HEIGHT_NORMAL; 
+
+            for (let i = 0; i < numPlatforms; i++) {
+                const platX = Math.random() * (canvas.width - PLATFORM_WIDTH * 1.5) + PLATFORM_WIDTH * 0.25; 
+                let platY = platformMinY + Math.random() * (platformMaxY - platformMinY);
+                if (i > 0) { 
+                    platY = Math.max(platforms[i-1].y + PLATFORM_HEIGHT + JUMP_STRENGTH, platY);
+                    platY = Math.min(platforms[i-1].y - PLATFORM_HEIGHT - JUMP_STRENGTH * 0.5, platY)
+                }
+                 platY = Math.max(PLATFORM_HEIGHT + 60, Math.min(platY, canvas.height - 80)); 
+                platforms.push(new Platform(platX, platY, PLATFORM_WIDTH, PLATFORM_HEIGHT)); 
+            }
+            platforms.push(new Platform(Math.random() * (canvas.width - PLATFORM_WIDTH), canvas.height - 10 - PLATFORM_HEIGHT - (JUMP_STRENGTH * 2.2), PLATFORM_WIDTH, PLATFORM_HEIGHT));
+        }
+
+
+        function initGame() { 
+            gameRunning = true; gameOverScreen.classList.remove('active'); waveAnnouncementDiv.style.display = 'none'; 
+            score = 0; wavesSurvived = 0; zombiesKilledTotal = 0; currentWave = 0; 
+            
+            currentMaxClipSize = INITIAL_CLIP_SIZE; 
+            currentReloadDuration = INITIAL_RELOAD_DURATION; 
+
+            const initialPlayerY = canvas.height - 10; 
+            player = new Player(canvas.width / 2, initialPlayerY); 
+            player.maxHealth = PLAYER_MAX_HEALTH; 
+            player.health = player.maxHealth;    
+            bullets = []; zombies = []; bloodSplatters = []; miniZombieProjectiles = []; explosions = []; platforms = [];
+            isBossWave = false; currentBoss = null; bossDefeatCount = 0; 
+            updateScoreDisplay(); updateWaveDisplay(); updateHealthBar();
+            player.currentClip = currentMaxClipSize; 
+            player.isReloading = false; player.reloadTimer = 0;
+            reloadIndicator.textContent = `Ammo: ${player.currentClip}/${currentMaxClipSize}`;
+            
+            if (!isMuted && audioUnlocked && backgroundMusic.paused) { 
+                backgroundMusic.play().catch(error => {
+                    console.warn("Background music autoplay was prevented on game start.", error);
+                });
+            }
+            startNextWave(); 
+            if (animationFrameId) cancelAnimationFrame(animationFrameId); gameLoop();
+        }
+
+        async function startNextWave() { 
+            currentWave++; wavesSurvived = currentWave -1; 
+            isBossWave = (currentWave > 0 && currentWave % 4 === 0); 
+
+            if (currentWave > 0) {
+                currentMaxClipSize = INITIAL_CLIP_SIZE + (currentWave - 1);
+                const wavesCompletedForReload = currentWave - 1;
+                const reductionPerWaveFactor = 0.03;
+                const maxReductionFactor = 0.70; 
+                let totalReductionFactor = wavesCompletedForReload * reductionPerWaveFactor;
+                totalReductionFactor = Math.min(totalReductionFactor, maxReductionFactor);
+                currentReloadDuration = INITIAL_RELOAD_DURATION * (1 - totalReductionFactor);
+            }
+
+            if (player) { 
+                 player.currentClip = Math.min(player.currentClip, currentMaxClipSize); 
+                 if (!player.isReloading) { 
+                    reloadIndicator.textContent = `Ammo: ${player.currentClip}/${currentMaxClipSize}`;
+                 }
+            }
+            
+            platforms = []; 
+            if (isBossWave) {
+                spawnBoss();
+            } else {
+                currentBoss = null; 
+                zombiesToSpawn = 2 + Math.floor(currentWave * 2.2); 
+                if (currentWave >= 3) { 
+                    const platX = Math.random() * (canvas.width - PLATFORM_WIDTH);
+                    const platY = canvas.height - 100 - Math.random() * 70; 
+                    platforms.push(new Platform(platX, Math.max(PLATFORM_HEIGHT + 60, platY), PLATFORM_WIDTH, PLATFORM_HEIGHT));
+                }
+            }
+            zombiesSpawnedThisWave = 0; 
+            timeSinceLastZombieSpawn = ZOMBIE_SPAWN_INTERVAL; updateWaveDisplay();
+
+            if (currentWave > 1) { 
+                const waveType = isBossWave ? `BOSS WAVE ${currentWave}!!!` : `Wave ${currentWave}`;
+                const prompt = `Generate a very short, exciting, and slightly ominous announcement for ${waveType} of a zombie shooter game. Maximum 12 words. Examples: '${waveType}: They're getting faster!', '${waveType}: A new horde approaches!', '${waveType}: The air crackles with dread!'`;
+                const announcement = await fetchGeminiResponse(prompt);
+                waveAnnouncementText.textContent = `✨ ${announcement}`; waveAnnouncementDiv.style.display = 'block';
+                setTimeout(() => { waveAnnouncementDiv.style.display = 'none'; }, 4000); 
+            }
+        }
+        function spawnZombie() { 
+            if (isBossWave || zombiesSpawnedThisWave >= zombiesToSpawn) return; 
+
+            let actualFlyingChance = FLYING_ZOMBIE_CHANCE; 
+            if (!isBossWave && currentWave >= 3 && platforms.length > 0) { 
+                actualFlyingChance = 0.52; 
+            }
+
+            if(zombiesSpawnedThisWave<zombiesToSpawn){
+                let zT='ground';
+                if(currentWave>=3&&Math.random()<actualFlyingChance)zT='flying';
+                let x,y;
+                // Zombie speed still increases with wave, but health is now constant
+                const s=ZOMBIE_INITIAL_SPEED+(currentWave*0.09), h=ZOMBIE_INITIAL_HEALTH; 
+                if(zT==='flying'){
+                    x=Math.random()<0.5?-ZOMBIE_WIDTH/2-20:canvas.width+ZOMBIE_WIDTH/2+20;
+                    y=(FLYING_ZOMBIE_BODY_HEIGHT+FLYING_ZOMBIE_HEAD_RADIUS)+Math.random()*(canvas.height*0.5);
+                    y=Math.min(y,canvas.height-50);
+                }else{
+                    x=Math.random()<0.5?-ZOMBIE_WIDTH/2-20:canvas.width+ZOMBIE_WIDTH/2+20;
+                    y=canvas.height-10;
+                }
+                zombies.push(new Zombie(x,y,s,h,zT));
+                zombiesSpawnedThisWave++;
+            }
+        }
+        function updateScoreDisplay(){scoreDisplay.textContent=`Kills: ${score}`;}
+        function updateWaveDisplay(){waveDisplay.textContent=`Wave: ${currentWave}`;}
+        function updateHealthBar(){if(!player)return;const hP=(player.health/player.maxHealth)*100;healthBarFill.style.width=`${hP}%`;playerHealthText.textContent=`HP: ${player.health}/${player.maxHealth}`;if(hP<=30)healthBarFill.style.backgroundColor='#e74c3c';else if(hP<=60)healthBarFill.style.backgroundColor='#f39c12';else healthBarFill.style.backgroundColor='#2ecc71';}
+        function checkCollision(r1,r2){ 
+            return r1.x < r2.x + r2.width &&
+                   r1.x + r1.width > r2.x &&
+                   r1.y < r2.y + r2.height &&
+                   r1.y + r1.height > r2.y;
+        }
+        
+        function handleCollisions() { 
+            if(!player)return;
+            for(let i=bullets.length-1;i>=0;i--){
+                const b=bullets[i]; if(!b) continue; 
+                const bR={x:b.x-b.radius,y:b.y-b.radius,width:b.radius*2,height:b.radius*2};
+                for(let j=zombies.length-1;j>=0;j--){
+                    const z=zombies[j]; if(!z) continue;
+                    const zR={x:z.x-z.width/2,y:z.y-z.getTotalHeight(),width:z.width,height:z.getTotalHeight()};
+                    if(checkCollision(bR,zR)){z.takeDamage(BULLET_DAMAGE);bullets.splice(i,1);
+                        if(z.health<=0){
+                            bloodSplatters.push(new BloodSplatter(z.x, z.y - z.getTotalHeight()/2 + Math.random()*10-5)); 
+                            zombies.splice(j,1);score++;zombiesKilledTotal++;updateScoreDisplay();
+                            if(!isMuted&&audioUnlocked){zombieDeathSound.currentTime=0;zombieDeathSound.play().catch(e=>console.error("Error playing zombie death sound:",e));}
+                        }break; 
+                    }
+                }
+            }
+            for (let i = bullets.length - 1; i >= 0; i--) {
+                const bullet = bullets[i]; if(!bullet) continue;
+                const bulletRect = { x: bullet.x - bullet.radius, y: bullet.y - bullet.radius, width: bullet.radius * 2, height: bullet.radius * 2 };
+                for (let j = miniZombieProjectiles.length - 1; j >= 0; j--) {
+                    const projectile = miniZombieProjectiles[j]; if(!projectile) continue;
+                    const projRect = { x: projectile.x - projectile.radius, y: projectile.y - projectile.radius, width: projectile.radius * 2, height: projectile.radius * 2 };
+                    if (checkCollision(bulletRect, projRect)) {
+                        projectile.takeDamage(BULLET_DAMAGE); 
+                        if (projectile.health <= 0) {
+                            explosions.push(new Explosion(projectile.x, projectile.y));
+                            miniZombieProjectiles.splice(j, 1);
+                        }
+                        bullets.splice(i, 1); 
+                        break; 
+                    }
+                }
+                if (!bullets[i]) break; 
+            }
+
+            if (currentBoss && currentBoss.health > 0) { 
+                const bossHitbox = { 
+                    x: currentBoss.x - currentBoss.width / 2, 
+                    y: currentBoss.y - currentBoss.getTotalHeight(), 
+                    width: currentBoss.width, 
+                    height: currentBoss.getTotalHeight() 
+                };
+                for (let i = bullets.length - 1; i >= 0; i--) {
+                    const b = bullets[i]; if(!b) continue;
+                    const bR = { x: b.x - b.radius, y: b.y - b.radius, width: b.radius * 2, height: b.radius * 2 };
+                    if (checkCollision(bR, bossHitbox)) { 
+                        currentBoss.takeDamage(BULLET_DAMAGE);
+                        bullets.splice(i, 1);
+                        break; 
+                    }
+                }
+            }
+            for (let i = miniZombieProjectiles.length - 1; i >= 0; i--) {
+                const projectile = miniZombieProjectiles[i];
+                const projRect = { x: projectile.x - projectile.radius, y: projectile.y - projectile.radius, width: projectile.radius * 2, height: projectile.radius * 2 };
+                const playerRect = { x: player.x - player.width / 2, y: player.y - player.getTotalHeight(), width: player.width, height: player.getTotalHeight() };
+                if (checkCollision(projRect, playerRect)) {
+                    player.takeDamage(MINI_ZOMBIE_PROJECTILE_DAMAGE);
+                    explosions.push(new Explosion(projectile.x, projectile.y)); 
+                    miniZombieProjectiles.splice(i, 1);
+                    break; 
+                }
+            }
+        }
+        async function gameOver() { 
+            gameRunning=false;if(animationFrameId)cancelAnimationFrame(animationFrameId);
+            if(!isMuted&&audioUnlocked){playerDeathSound.currentTime=0;playerDeathSound.play().catch(e=>console.error("Error playing player death sound:",e));if(!backgroundMusic.paused){backgroundMusic.pause();backgroundMusic.currentTime=0;}}
+            finalScoreDisplay.textContent=`You killed ${zombiesKilledTotal} zombies.`;finalWaveDisplay.textContent=`You survived ${wavesSurvived} waves.`;
+            const prompt=`Generate a short, witty, and slightly taunting game over message for a zombie shooter game. The player survived ${wavesSurvived} waves and killed ${zombiesKilledTotal} zombies. Maximum 20 words. Be creative!`;
+            geminiGameOverMessageElement.textContent="✨ Fetching your fate...";const message=await fetchGeminiResponse(prompt);
+            geminiGameOverMessageElement.textContent=`✨ ${message}`;gameOverScreen.classList.add('active');
+            const gU=window.location.href,tM=`I survived ${wavesSurvived} waves and killed ${zombiesKilledTotal} zombies in ZombieWave! Can you beat my score? Play now! ${message}`;
+            twitterShareButton.href=`https://twitter.com/intent/tweet?text=${encodeURIComponent(tM)}&url=${encodeURIComponent(gU)}`;
+        }
+        function gameLoop() { 
+            if(!gameRunning)return;ctx.fillStyle='#bdc3c7';ctx.fillRect(0,0,canvas.width,canvas.height);
+            ctx.fillStyle='#7f8c8d';ctx.fillRect(0,canvas.height-10,canvas.width,10);
+            
+            platforms.forEach(platform => platform.draw(ctx));
+            for(let i=bloodSplatters.length-1;i>=0;i--){if(bloodSplatters[i].update()){bloodSplatters[i].draw(ctx);}else{bloodSplatters.splice(i,1);}}
+
+            if(player){player.update();player.draw(ctx);}
+            for(let i=bullets.length-1;i>=0;i--){bullets[i].update();bullets[i].draw(ctx);if(bullets[i].x<-bullets[i].radius||bullets[i].x>canvas.width+bullets[i].radius||bullets[i].y<-bullets[i].radius||bullets[i].y>canvas.height+bullets[i].radius)bullets.splice(i,1);}
+            
+            for (let i = miniZombieProjectiles.length - 1; i >= 0; i--) {
+                miniZombieProjectiles[i].update();
+                miniZombieProjectiles[i].draw(ctx);
+                if (miniZombieProjectiles[i].y + miniZombieProjectiles[i].radius >= canvas.height - 10) { 
+                    explosions.push(new Explosion(miniZombieProjectiles[i].x, canvas.height - 10 - MINI_ZOMBIE_PROJECTILE_RADIUS));
+                    miniZombieProjectiles.splice(i, 1);
+                } else if (miniZombieProjectiles[i].x < -MINI_ZOMBIE_PROJECTILE_RADIUS || miniZombieProjectiles[i].x > canvas.width + MINI_ZOMBIE_PROJECTILE_RADIUS || miniZombieProjectiles[i].y > canvas.height + MINI_ZOMBIE_PROJECTILE_RADIUS) {
+                    miniZombieProjectiles.splice(i, 1); 
+                }
+            }
+            for (let i = explosions.length - 1; i >= 0; i--) {
+                if (explosions[i].update()) { explosions[i].draw(ctx); } 
+                else { explosions.splice(i, 1); }
+            }
+            
+            if (!isBossWave) { 
+                timeSinceLastZombieSpawn+=1000/60;
+                if(timeSinceLastZombieSpawn>=ZOMBIE_SPAWN_INTERVAL&&zombiesSpawnedThisWave<zombiesToSpawn){
+                    spawnZombie();
+                    timeSinceLastZombieSpawn=0;
+                }
+            }
+
+            for(let i=zombies.length-1;i>=0;i--){zombies[i].update(player);zombies[i].draw(ctx);}
+            if (currentBoss) { currentBoss.update(player); currentBoss.draw(ctx); }
+
+
+            if(player)handleCollisions(); 
+            
+            if (isBossWave) {
+                if (currentBoss && currentBoss.health <= 0) { 
+                    console.log("Boss defeated in gameLoop, proceeding to next wave."); 
+                    bloodSplatters.push(new BloodSplatter(currentBoss.x, currentBoss.y - currentBoss.getTotalHeight()/2, currentBoss.width)); 
+                    isBossWave = false; 
+                    currentBoss = null; 
+                    platforms = []; 
+                    bossDefeatCount++;
+ 
+                    if (player) {
+                        player.maxHealth += 10; 
+                        player.health = player.maxHealth;    
+                        
+                        updateHealthBar();
+                        console.log(`Player max health increased to ${player.maxHealth}. Current health: ${player.health}`);
+                    }
+
+                    startNextWave();
+                }
+            } else if (player && player.health > 0 && zombies.length === 0 && zombiesSpawnedThisWave >= zombiesToSpawn) {
+                 startNextWave();
+            }
+
+            animationFrameId=requestAnimationFrame(gameLoop);
+        }
+
+        // Event Listeners
+        let lastMouseX, lastMouseY;
+        window.addEventListener('keydown', (e)=>{ 
+            if (!audioUnlocked) unlockAudioContext(); 
+            const k=e.key.toLowerCase();keys[k]=true;
+            if(gameRunning&&player){
+                if(k==='r' && !player.isReloading&&player.currentClip<currentMaxClipSize)player.startReload(); 
+                if(k===' '){ 
+                    e.preventDefault();
+                }
+            }
+            if([' ','arrowup','arrowdown','arrowleft','arrowright','w','a','s','d','control','r'].includes(k))e.preventDefault(); 
+        });
+        window.addEventListener('keyup', (e)=>{
+            const k = e.key.toLowerCase();
+            keys[k]=false;
+            if (k === 'arrowup' || k === ' ') { 
+                if(player) player.jumpKeyJustPressed = false;
+            }
+        });
+        canvas.addEventListener('mousedown', (e)=>{ 
+            if (!audioUnlocked) unlockAudioContext(); 
+            if(e.button===0&&gameRunning&&player){
+                const r=canvas.getBoundingClientRect();lastMouseX=e.clientX-r.left;lastMouseY=e.clientY-r.top; 
+                player.attack(); 
+            }});
+        
+        restartGameButton.addEventListener('click', initGame);
+        
+        muteButton.addEventListener('click', ()=>{ 
+            if (!audioUnlocked) unlockAudioContext(); 
+            isMuted=!isMuted;muteButton.textContent=isMuted?'🔊':'🔇';muteButton.classList.toggle('muted',isMuted);
+            if(isMuted){backgroundMusic.pause();}else{if(gameRunning&&audioUnlocked&&backgroundMusic.paused)backgroundMusic.play().catch(e=>console.warn("Error playing music after unmute:",e));}
+            console.log(isMuted?"Audio Muted":"Audio Unmuted");
+        });
+
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas(); initGame(); 
+    });
+    </script>
+</body>
+</html>
