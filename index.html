@@ -441,7 +441,7 @@
         const playerHitSound = new Audio('sounds/player_hit.mp3'); 
         const zombieDeathSound = new Audio('sounds/zombie_death.mp3');
         const backgroundMusic = new Audio('sounds/background.mp3');
-        const bossDeathSound = new Audio('sounds/boss_death.mp3'); // Added boss death sound
+        const bossDeathSound = new Audio('sounds/boss_death.mp3'); 
         // const bossSpawnSound = new Audio('sounds/boss_spawn.mp3');
         // const miniZombieLaunchSound = new Audio('sounds/mini_launch.mp3');
         // const miniZombieExplodeSound = new Audio('sounds/mini_explode.mp3');
@@ -576,7 +576,7 @@
             if (audioUnlocked) return;
             audioUnlocked = true;
             console.log("Audio context unlocked by user interaction.");
-            [jumpSound, shootSound, playerDeathSound, playerHitSound, zombieDeathSound, backgroundMusic, bossDeathSound].forEach(sound => { // Added bossDeathSound
+            [jumpSound, shootSound, playerDeathSound, playerHitSound, zombieDeathSound, backgroundMusic, bossDeathSound].forEach(sound => { 
                 sound.load(); 
             });
             if (!isMuted && backgroundMusic.paused && gameRunning) { 
@@ -1213,6 +1213,7 @@
         }
 
         async function startNextWave() { 
+            console.log("Starting startNextWave for wave:", currentWave + 1); 
             currentWave++; wavesSurvived = currentWave -1; 
             isBossWave = (currentWave > 0 && currentWave % 4 === 0); 
             const wavesCompleted = currentWave - 1; 
@@ -1278,7 +1279,7 @@
                         platforms.push(new Platform(platX, platY, PLATFORM_WIDTH, PLATFORM_HEIGHT));
                     } else if (i > 0) { 
                         platX = Math.random() * (canvas.width - PLATFORM_WIDTH);
-                        platY = (canvas.height * 0.5) + Math.random() * (canvas.height * 0.3); // More random Y if overlap
+                        platY = (canvas.height * 0.5) + Math.random() * (canvas.height * 0.3); 
                         platY = Math.max(PLATFORM_HEIGHT + 20, Math.min(platY, canvas.height - minYFromGround));
                         platforms.push(new Platform(platX, platY, PLATFORM_WIDTH, PLATFORM_HEIGHT));
                     }
@@ -1298,35 +1299,43 @@
             if (currentWave > 1) { 
                 const waveType = isBossWave ? `BOSS WAVE ${currentWave}!!!` : `Wave ${currentWave}`;
                 const prompt = `Generate a very short, exciting, and slightly ominous announcement for ${waveType} of a zombie shooter game. Maximum 12 words. Examples: '${waveType}: They're getting faster!', '${waveType}: A new horde approaches!', '${waveType}: The air crackles with dread!'`;
-                const announcement = await fetchGeminiResponse(prompt);
-                waveAnnouncementText.textContent = `✨ ${announcement}`; waveAnnouncementDiv.style.display = 'block';
-                setTimeout(() => { waveAnnouncementDiv.style.display = 'none'; }, 4000); 
+                try { 
+                    const announcement = await fetchGeminiResponse(prompt);
+                    waveAnnouncementText.textContent = `✨ ${announcement}`; 
+                    waveAnnouncementDiv.style.display = 'block';
+                    setTimeout(() => { waveAnnouncementDiv.style.display = 'none'; }, 4000); 
+                } catch (e) { 
+                    console.error("Failed to fetch or display wave announcement:", e);
+                    waveAnnouncementText.textContent = `✨ ${waveType}! Get Ready!`; // Fallback message
+                    waveAnnouncementDiv.style.display = 'block';
+                    setTimeout(() => { waveAnnouncementDiv.style.display = 'none'; }, 4000);
+                }
             }
+            console.log("Finished startNextWave for wave:", currentWave);
         }
         function spawnZombie() { 
             if (isBossWave || zombiesSpawnedThisWave >= zombiesToSpawn) return; 
 
-            let actualFlyingChance = FLYING_ZOMBIE_CHANCE; // Base: 0.168
+            let actualFlyingChance = FLYING_ZOMBIE_CHANCE; 
             if (!isBossWave && currentWave >= 3 && platforms.length > 0) { 
-                actualFlyingChance = 0.364; // Platform present: 0.364
+                actualFlyingChance = 0.364; 
             }
 
             if(zombiesSpawnedThisWave<zombiesToSpawn){
                 let zombieTypeToSpawn = 'ground'; 
                 const wavesCompleted = currentWave - 1;
                 const baseSpeedForWave = ZOMBIE_INITIAL_SPEED + (wavesCompleted * 0.09);
-                let baseHealthParameter; // This will be the scaled green health or initial for flying
+                let baseHealthParameter; 
                 
                 if (currentWave >= 3 && Math.random() < actualFlyingChance) {
                     zombieTypeToSpawn = 'flying';
                     baseHealthParameter = ZOMBIE_INITIAL_HEALTH; 
-                } else { // Potential ground or red_ground zombie
+                } else { 
                     const healthBoostIntervals = Math.floor(wavesCompleted / 3);
                     baseHealthParameter = ZOMBIE_INITIAL_HEALTH * (1 + (healthBoostIntervals * 0.25));
                     
                     if (bossDefeatCount >= 1 && Math.random() < RED_ZOMBIE_SPAWN_CHANCE_AFTER_BOSS1) {
                         zombieTypeToSpawn = 'red_ground';
-                        // For red_ground, baseHealthParameter is the scaled green health. Constructor applies 0.5x.
                     } else {
                         zombieTypeToSpawn = 'ground'; 
                     }
@@ -1474,7 +1483,7 @@
                     console.log("Boss defeated in gameLoop, proceeding to next wave."); 
                     bloodSplatters.push(new BloodSplatter(currentBoss.x, currentBoss.y - currentBoss.getTotalHeight()/2, currentBoss.width)); 
                     
-                    if (!isMuted && audioUnlocked) { // Play boss death sound
+                    if (!isMuted && audioUnlocked) { 
                         bossDeathSound.currentTime = 0;
                         bossDeathSound.play().catch(e => console.error("Error playing boss death sound:", e));
                     }
@@ -1491,10 +1500,10 @@
                         console.log(`Player max health increased to ${player.maxHealth}. Current health: ${player.health}`);
                     }
 
-                    startNextWave();
+                    startNextWave(); // This is an async function, but gameLoop doesn't await it.
                 }
             } else if (player && player.health > 0 && zombies.length === 0 && zombiesSpawnedThisWave >= zombiesToSpawn) {
-                 startNextWave();
+                 startNextWave(); // This is an async function, but gameLoop doesn't await it.
             }
 
             animationFrameId=requestAnimationFrame(gameLoop);
