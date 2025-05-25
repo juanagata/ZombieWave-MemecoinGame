@@ -441,6 +441,7 @@
         const playerHitSound = new Audio('sounds/player_hit.mp3'); 
         const zombieDeathSound = new Audio('sounds/zombie_death.mp3');
         const backgroundMusic = new Audio('sounds/background.mp3');
+        const bossDeathSound = new Audio('sounds/boss_death.mp3'); // Added boss death sound
         // const bossSpawnSound = new Audio('sounds/boss_spawn.mp3');
         // const miniZombieLaunchSound = new Audio('sounds/mini_launch.mp3');
         // const miniZombieExplodeSound = new Audio('sounds/mini_explode.mp3');
@@ -483,9 +484,11 @@
         const FLYING_ZOMBIE_BODY_HEIGHT = 30; 
         const FLYING_ZOMBIE_HEAD_RADIUS = 6;
         const ZOMBIE_INITIAL_SPEED = 0.6;
+        const RED_ZOMBIE_SPEED_MULTIPLIER = 1.3; 
         const FLYING_ZOMBIE_SPEED_MULTIPLIER = 1.1; 
         const ZOMBIE_INITIAL_HEALTH = 60; 
         const FLYING_ZOMBIE_HEALTH_MULTIPLIER = 0.8; 
+        const RED_ZOMBIE_HEALTH_MULTIPLIER = 0.5; 
         const ZOMBIE_ATTACK_DAMAGE = 12;
         const ZOMBIE_ATTACK_COOLDOWN = 1200; 
 
@@ -533,9 +536,10 @@
         let zombiesToSpawn = 0;
         let zombiesSpawnedThisWave = 0;
         let timeSinceLastZombieSpawn = 0;
-        const INITIAL_ZOMBIE_SPAWN_INTERVAL = 1800; // Renamed
-        let currentZombieSpawnInterval = INITIAL_ZOMBIE_SPAWN_INTERVAL; // New dynamic interval
-        const FLYING_ZOMBIE_CHANCE = 0.24; 
+        const INITIAL_ZOMBIE_SPAWN_INTERVAL = 1800; 
+        let currentZombieSpawnInterval = INITIAL_ZOMBIE_SPAWN_INTERVAL; 
+        const FLYING_ZOMBIE_CHANCE = 0.168; 
+        const RED_ZOMBIE_SPAWN_CHANCE_AFTER_BOSS1 = 0.3; 
         
         let isBossWave = false; 
         let currentBoss = null; 
@@ -572,7 +576,7 @@
             if (audioUnlocked) return;
             audioUnlocked = true;
             console.log("Audio context unlocked by user interaction.");
-            [jumpSound, shootSound, playerDeathSound, playerHitSound, zombieDeathSound, backgroundMusic].forEach(sound => {
+            [jumpSound, shootSound, playerDeathSound, playerHitSound, zombieDeathSound, backgroundMusic, bossDeathSound].forEach(sound => { // Added bossDeathSound
                 sound.load(); 
             });
             if (!isMuted && backgroundMusic.paused && gameRunning) { 
@@ -694,7 +698,7 @@
                 this.y += this.velocityY; this.velocityY += GRAVITY;
                 const groundLevel = canvas.height - 10; 
                 let onPlatform = false;
-                if (isBossWave || (!isBossWave && currentWave >=3 && platforms.length > 0) ) { 
+                if (isBossWave || (!isBossWave && currentWave >=2 && platforms.length > 0) ) { 
                     for (const platform of platforms) {
                         if (this.x + this.width / 2 > platform.x && 
                             this.x - this.width / 2 < platform.x + platform.width &&
@@ -861,15 +865,46 @@
 
 
         class Zombie { 
-            constructor(x,y,s,h,type='ground'){this.x=x;this.y=y;this.width=ZOMBIE_WIDTH;this.type=type;this.speed=s*(type==='flying'?FLYING_ZOMBIE_SPEED_MULTIPLIER:1);this.health=h*(type==='flying'?FLYING_ZOMBIE_HEALTH_MULTIPLIER:1);this.maxHealth=this.health;this.isAttacking=false;this.attackCooldownTimer=0;this.facingRight=true; }
+            constructor(x, y, baseSpeed, baseHealth, type = 'ground') {
+                this.x = x; this.y = y; this.width = ZOMBIE_WIDTH;
+                this.type = type;
+                this.isAttacking = false; this.attackCooldownTimer = 0; this.facingRight = true;
+
+                if (type === 'red_ground') {
+                    this.speed = baseSpeed * RED_ZOMBIE_SPEED_MULTIPLIER;
+                    this.health = baseHealth * RED_ZOMBIE_HEALTH_MULTIPLIER; 
+                } else if (type === 'flying') {
+                    this.speed = baseSpeed * FLYING_ZOMBIE_SPEED_MULTIPLIER;
+                    this.health = baseHealth * FLYING_ZOMBIE_HEALTH_MULTIPLIER;
+                } else { // 'ground' (green)
+                    this.speed = baseSpeed;
+                    this.health = baseHealth;
+                }
+                this.maxHealth = this.health;
+            }
             getBodyHeight(){return this.type==='flying'?FLYING_ZOMBIE_BODY_HEIGHT:ZOMBIE_BODY_HEIGHT;}
-            getHeadRadius(){return this.type==='flying'?FLYING_ZOMBIE_HEAD_RADIUS:ZOMBIE_HEAD_RADIUS;}
+            getHeadRadius(){
+                if (this.type === 'flying') return FLYING_ZOMBIE_HEAD_RADIUS;
+                return ZOMBIE_HEAD_RADIUS; 
+            }
             getTotalHeight(){return this.getBodyHeight()+this.getHeadRadius();}
-            draw(ctx){const bH=this.getBodyHeight(),hR=this.getHeadRadius(),bAY=this.y-bH,hAY=bAY-hR/2;ctx.save();if(!this.facingRight){ctx.translate(this.x,0);ctx.scale(-1,1);ctx.translate(-this.x,0);}
-            let bC='#27ae60',hC='#1e8449';if(this.type==='flying'){bC='#8e44ad';hC='#56126E';}
-            ctx.fillStyle=bC;ctx.fillRect(this.x-this.width/2,bAY,this.width,bH);ctx.fillStyle=hC;ctx.beginPath();ctx.arc(this.x,hAY,hR,0,Math.PI*2);ctx.fill();
-            if(this.type==='flying'){ctx.fillStyle='#71368A';const wW=this.width*0.8,wH=bH*0.3,wY=bAY+bH*0.3;ctx.fillRect(this.x-this.width/2-wW,wY,wW,wH);ctx.fillRect(this.x+this.width/2,wY,wW,wH);}
-            ctx.restore();if(this.health<this.maxHealth&&this.health>0){const bW=this.width*1.2,bX=this.x-bW/2,bY=bAY-hR-8;ctx.fillStyle='#c0392b';ctx.fillRect(bX,bY,bW,5);ctx.fillStyle='#e74c3c';ctx.fillRect(bX,bY,bW*(this.health/this.maxHealth),5);}}
+            draw(ctx){
+                const bH=this.getBodyHeight(),hR=this.getHeadRadius(),bAY=this.y-bH,hAY=bAY-hR/2;
+                ctx.save();if(!this.facingRight){ctx.translate(this.x,0);ctx.scale(-1,1);ctx.translate(-this.x,0);}
+            
+                let bC='#27ae60',hC='#1e8449'; 
+                if(this.type==='flying'){
+                    bC='#8e44ad';hC='#56126E';
+                } else if (this.type === 'red_ground') {
+                    bC='#c0392b';hC='#a93226'; 
+                }
+
+                ctx.fillStyle=bC;ctx.fillRect(this.x-this.width/2,bAY,this.width,bH);
+                ctx.fillStyle=hC;ctx.beginPath();ctx.arc(this.x,hAY,hR,0,Math.PI*2);ctx.fill();
+
+                if(this.type==='flying'){ctx.fillStyle='#71368A';const wW=this.width*0.8,wH=bH*0.3,wY=bAY+bH*0.3;ctx.fillRect(this.x-this.width/2-wW,wY,wW,wH);ctx.fillRect(this.x+this.width/2,wY,wW,wH);}
+                ctx.restore();
+                if(this.health<this.maxHealth&&this.health>0){const bW=this.width*1.2,bX=this.x-bW/2,bY=bAY-hR-8;ctx.fillStyle='#c0392b';ctx.fillRect(bX,bY,bW,5);ctx.fillStyle='#e74c3c';ctx.fillRect(bX,bY,bW*(this.health/this.maxHealth),5);}}
             
             update(playerInstance) {
                 const dx = playerInstance.x - this.x;
@@ -1080,22 +1115,72 @@
             currentBoss = new BossZombie(canvas.width / 2, canvas.height - 10 - BOSS_BODY_HEIGHT, bossHealth); 
             zombiesToSpawn = 0; 
             zombiesSpawnedThisWave = 0; 
+            
             platforms = []; 
             const numPlatforms = 3 + Math.floor(Math.random() * 2); 
-            const platformMinY = canvas.height * 0.35;
-            const platformMaxY = canvas.height - 80 - PLAYER_BODY_HEIGHT_NORMAL; 
+            const playerInitialX = canvas.width / 2; 
+            const verticalRangeMin = canvas.height * 0.3; 
+            const verticalRangeMax = canvas.height - PLATFORM_HEIGHT - JUMP_STRENGTH * 1.2; 
 
             for (let i = 0; i < numPlatforms; i++) {
-                const platX = Math.random() * (canvas.width - PLATFORM_WIDTH * 1.5) + PLATFORM_WIDTH * 0.25; 
-                let platY = platformMinY + Math.random() * (platformMaxY - platformMinY);
-                if (i > 0) { 
-                    platY = Math.max(platforms[i-1].y + PLATFORM_HEIGHT + JUMP_STRENGTH, platY);
-                    platY = Math.min(platforms[i-1].y - PLATFORM_HEIGHT - JUMP_STRENGTH * 0.5, platY)
+                let platX, platY;
+                let attempts = 0;
+                let positionFound = false;
+
+                while(attempts < 10 && !positionFound) {
+                    platX = (canvas.width * (0.15 + Math.random() * 0.7)) - (PLATFORM_WIDTH / 2);
+                    platX = Math.max(0, Math.min(platX, canvas.width - PLATFORM_WIDTH));
+                    platY = verticalRangeMin + Math.random() * (verticalRangeMax - verticalRangeMin);
+                    platY = Math.max(PLATFORM_HEIGHT + 40, platY); 
+
+                    let tooClose = false;
+                    for (const p of platforms) {
+                        if (Math.abs(p.x - platX) < PLATFORM_WIDTH * 1.5 && Math.abs(p.y - platY) < PLATFORM_HEIGHT * 3) {
+                            tooClose = true;
+                            break;
+                        }
+                    }
+                    if (!tooClose) {
+                        positionFound = true;
+                    }
+                    attempts++;
                 }
-                 platY = Math.max(PLATFORM_HEIGHT + 60, Math.min(platY, canvas.height - 80)); 
-                platforms.push(new Platform(platX, platY, PLATFORM_WIDTH, PLATFORM_HEIGHT)); 
+                if (positionFound) {
+                    platforms.push(new Platform(platX, platY, PLATFORM_WIDTH, PLATFORM_HEIGHT));
+                }
             }
-            platforms.push(new Platform(Math.random() * (canvas.width - PLATFORM_WIDTH), canvas.height - 10 - PLATFORM_HEIGHT - (JUMP_STRENGTH * 2.2), PLATFORM_WIDTH, PLATFORM_HEIGHT));
+            let groundReachableExists = platforms.some(p => p.y > canvas.height - PLATFORM_HEIGHT - JUMP_STRENGTH * 2.8);
+            if (!groundReachableExists || platforms.length < Math.min(2, numPlatforms) ) { 
+                platforms.push(new Platform(
+                    playerInitialX + (Math.random() * 200 - 100) - PLATFORM_WIDTH / 2, 
+                    canvas.height - 10 - PLATFORM_HEIGHT - (JUMP_STRENGTH * (1.5 + Math.random() * 0.8) ), 
+                    PLATFORM_WIDTH, 
+                    PLATFORM_HEIGHT
+                ));
+            }
+            while(platforms.length < Math.min(numPlatforms, 2) && numPlatforms >=2 ) { 
+                 platforms.push(new Platform(
+                    Math.random() * (canvas.width - PLATFORM_WIDTH), 
+                    verticalRangeMin + Math.random() * (verticalRangeMax - verticalRangeMin),
+                    PLATFORM_WIDTH, 
+                    PLATFORM_HEIGHT
+                ));
+            }
+            
+            if (bossDefeatCount >= 3) {
+                const numRedZombies = 2 + Math.floor(Math.random() * 2); 
+                console.log(`Spawning ${numRedZombies} red zombies with Boss!`);
+                const wavesCompletedForScaling = currentWave - 1;
+                const baseSpeedForWave = ZOMBIE_INITIAL_SPEED + (wavesCompletedForScaling * 0.09);
+                const healthBoostIntervals = Math.floor(wavesCompletedForScaling / 3);
+                const baseHealthForGreenGround = ZOMBIE_INITIAL_HEALTH * (1 + (healthBoostIntervals * 0.25));
+
+                for (let i = 0; i < numRedZombies; i++) {
+                    let x = Math.random() < 0.5 ? -ZOMBIE_WIDTH / 2 - 20 - (i * 30) : canvas.width + ZOMBIE_WIDTH / 2 + 20 + (i * 30) ; 
+                    let y = canvas.height - 10; 
+                    zombies.push(new Zombie(x, y, baseSpeedForWave, baseHealthForGreenGround, 'red_ground'));
+                }
+            }
         }
 
 
@@ -1105,7 +1190,7 @@
             
             currentMaxClipSize = INITIAL_CLIP_SIZE; 
             currentReloadDuration = INITIAL_RELOAD_DURATION; 
-            currentZombieSpawnInterval = INITIAL_ZOMBIE_SPAWN_INTERVAL; // Reset zombie spawn interval
+            currentZombieSpawnInterval = INITIAL_ZOMBIE_SPAWN_INTERVAL; 
 
             const initialPlayerY = canvas.height - 10; 
             player = new Player(canvas.width / 2, initialPlayerY); 
@@ -1130,7 +1215,7 @@
         async function startNextWave() { 
             currentWave++; wavesSurvived = currentWave -1; 
             isBossWave = (currentWave > 0 && currentWave % 4 === 0); 
-            const wavesCompleted = currentWave - 1; // For easier calculation of scaling
+            const wavesCompleted = currentWave - 1; 
 
             if (currentWave > 0) {
                 currentMaxClipSize = INITIAL_CLIP_SIZE + wavesCompleted;
@@ -1141,13 +1226,11 @@
                 totalReductionFactorReload = Math.min(totalReductionFactorReload, maxReductionFactorReload);
                 currentReloadDuration = INITIAL_RELOAD_DURATION * (1 - totalReductionFactorReload);
 
-                // --- ZOMBIE SPAWN INTERVAL SCALING ---
                 const reductionPerWaveFactorSpawn = 0.03;
-                const maxReductionFactorSpawn = 0.70; // Max 70% faster spawn (interval is 30% of original)
+                const maxReductionFactorSpawn = 0.70; 
                 let totalReductionFactorSpawn = wavesCompleted * reductionPerWaveFactorSpawn;
                 totalReductionFactorSpawn = Math.min(totalReductionFactorSpawn, maxReductionFactorSpawn);
                 currentZombieSpawnInterval = INITIAL_ZOMBIE_SPAWN_INTERVAL * (1 - totalReductionFactorSpawn);
-                // console.log(`Wave ${currentWave}: SpawnInterval: ${currentZombieSpawnInterval.toFixed(2)}ms`);
             }
 
             if (player) { 
@@ -1158,19 +1241,58 @@
             }
             
             platforms = []; 
+            if (!isBossWave && currentWave >= 2 && player) { 
+                let numPlatformsToSpawn = 0;
+                if (currentWave === 2) { 
+                    numPlatformsToSpawn = (Math.random() < 0.6 ? 1 : 0); 
+                } else if (currentWave >= 3 && currentWave < 5) { 
+                    numPlatformsToSpawn = 1 + (Math.random() < 0.5 ? 1 : 0);
+                } else if (currentWave >= 5) { 
+                     numPlatformsToSpawn = 1 + (Math.random() < 0.7 ? 1 : 0);
+                }
+
+                for (let i = 0; i < numPlatformsToSpawn; i++) {
+                    let platX, platY;
+                    const horizontalSpread = canvas.width * 0.25; 
+                    platX = player.x + (Math.random() * horizontalSpread * 2 - horizontalSpread) - (PLATFORM_WIDTH / 2);
+                    platX = Math.max(0, Math.min(platX, canvas.width - PLATFORM_WIDTH)); 
+
+                    const basePlayerY = player.y - player.getTotalHeight(); 
+                    const jumpReach = JUMP_STRENGTH * 2.5; 
+                    const randomYOffset = Math.random() * JUMP_STRENGTH * 1.5; 
+                    platY = basePlayerY - jumpReach + randomYOffset; 
+
+                    const minYFromGround = PLATFORM_HEIGHT + JUMP_STRENGTH * 0.8; 
+                    platY = Math.min(platY, canvas.height - minYFromGround); 
+                    platY = Math.max(PLATFORM_HEIGHT + 20, platY); 
+
+                    let tooCloseToOtherPlatform = false;
+                    for (const p of platforms) {
+                        if (Math.abs(p.x - platX) < PLATFORM_WIDTH && Math.abs(p.y - platY) < PLATFORM_HEIGHT * 3) {
+                            tooCloseToOtherPlatform = true;
+                            break;
+                        }
+                    }
+
+                    if (!tooCloseToOtherPlatform || numPlatformsToSpawn === 1) { 
+                        platforms.push(new Platform(platX, platY, PLATFORM_WIDTH, PLATFORM_HEIGHT));
+                    } else if (i > 0) { 
+                        platX = Math.random() * (canvas.width - PLATFORM_WIDTH);
+                        platY = (canvas.height * 0.5) + Math.random() * (canvas.height * 0.3); // More random Y if overlap
+                        platY = Math.max(PLATFORM_HEIGHT + 20, Math.min(platY, canvas.height - minYFromGround));
+                        platforms.push(new Platform(platX, platY, PLATFORM_WIDTH, PLATFORM_HEIGHT));
+                    }
+                }
+            }
+            
             if (isBossWave) {
-                spawnBoss();
+                spawnBoss(); 
             } else {
                 currentBoss = null; 
                 zombiesToSpawn = 2 + Math.floor(currentWave * 2.2); 
-                if (currentWave >= 3) { 
-                    const platX = Math.random() * (canvas.width - PLATFORM_WIDTH);
-                    const platY = canvas.height - 100 - Math.random() * 70; 
-                    platforms.push(new Platform(platX, Math.max(PLATFORM_HEIGHT + 60, platY), PLATFORM_WIDTH, PLATFORM_HEIGHT));
-                }
             }
             zombiesSpawnedThisWave = 0; 
-            timeSinceLastZombieSpawn = currentZombieSpawnInterval; // Start with full interval for the first zombie of the wave
+            timeSinceLastZombieSpawn = currentZombieSpawnInterval; 
             updateWaveDisplay();
 
             if (currentWave > 1) { 
@@ -1184,37 +1306,42 @@
         function spawnZombie() { 
             if (isBossWave || zombiesSpawnedThisWave >= zombiesToSpawn) return; 
 
-            let actualFlyingChance = FLYING_ZOMBIE_CHANCE; 
+            let actualFlyingChance = FLYING_ZOMBIE_CHANCE; // Base: 0.168
             if (!isBossWave && currentWave >= 3 && platforms.length > 0) { 
-                actualFlyingChance = 0.52; 
+                actualFlyingChance = 0.364; // Platform present: 0.364
             }
 
             if(zombiesSpawnedThisWave<zombiesToSpawn){
-                let zT='ground';
-                if(currentWave>=3&&Math.random()<actualFlyingChance)zT='flying';
-                let x,y;
+                let zombieTypeToSpawn = 'ground'; 
                 const wavesCompleted = currentWave - 1;
+                const baseSpeedForWave = ZOMBIE_INITIAL_SPEED + (wavesCompleted * 0.09);
+                let baseHealthParameter; // This will be the scaled green health or initial for flying
                 
-                // Zombie speed still increases with wave
-                const s = ZOMBIE_INITIAL_SPEED + (wavesCompleted * 0.09);
-                let h;
-
-                if (zT === 'ground') {
+                if (currentWave >= 3 && Math.random() < actualFlyingChance) {
+                    zombieTypeToSpawn = 'flying';
+                    baseHealthParameter = ZOMBIE_INITIAL_HEALTH; 
+                } else { // Potential ground or red_ground zombie
                     const healthBoostIntervals = Math.floor(wavesCompleted / 3);
-                    h = ZOMBIE_INITIAL_HEALTH * (1 + (healthBoostIntervals * 0.25));
-                } else { // zT === 'flying'
-                    h = ZOMBIE_INITIAL_HEALTH; // Base health, constructor applies FLYING_ZOMBIE_HEALTH_MULTIPLIER
+                    baseHealthParameter = ZOMBIE_INITIAL_HEALTH * (1 + (healthBoostIntervals * 0.25));
+                    
+                    if (bossDefeatCount >= 1 && Math.random() < RED_ZOMBIE_SPAWN_CHANCE_AFTER_BOSS1) {
+                        zombieTypeToSpawn = 'red_ground';
+                        // For red_ground, baseHealthParameter is the scaled green health. Constructor applies 0.5x.
+                    } else {
+                        zombieTypeToSpawn = 'ground'; 
+                    }
                 }
                 
-                if(zT==='flying'){
+                let x,y;
+                if(zombieTypeToSpawn ==='flying'){
                     x=Math.random()<0.5?-ZOMBIE_WIDTH/2-20:canvas.width+ZOMBIE_WIDTH/2+20;
                     y=(FLYING_ZOMBIE_BODY_HEIGHT+FLYING_ZOMBIE_HEAD_RADIUS)+Math.random()*(canvas.height*0.5);
                     y=Math.min(y,canvas.height-50);
-                }else{ // ground
+                }else{ 
                     x=Math.random()<0.5?-ZOMBIE_WIDTH/2-20:canvas.width+ZOMBIE_WIDTH/2+20;
                     y=canvas.height-10;
                 }
-                zombies.push(new Zombie(x,y,s,h,zT));
+                zombies.push(new Zombie(x, y, baseSpeedForWave, baseHealthParameter, zombieTypeToSpawn));
                 zombiesSpawnedThisWave++;
             }
         }
@@ -1330,7 +1457,7 @@
             
             if (!isBossWave) { 
                 timeSinceLastZombieSpawn+=1000/60;
-                if(timeSinceLastZombieSpawn>=currentZombieSpawnInterval && zombiesSpawnedThisWave<zombiesToSpawn){ // Use currentZombieSpawnInterval
+                if(timeSinceLastZombieSpawn>=currentZombieSpawnInterval && zombiesSpawnedThisWave<zombiesToSpawn){ 
                     spawnZombie();
                     timeSinceLastZombieSpawn=0;
                 }
@@ -1346,9 +1473,14 @@
                 if (currentBoss && currentBoss.health <= 0) { 
                     console.log("Boss defeated in gameLoop, proceeding to next wave."); 
                     bloodSplatters.push(new BloodSplatter(currentBoss.x, currentBoss.y - currentBoss.getTotalHeight()/2, currentBoss.width)); 
+                    
+                    if (!isMuted && audioUnlocked) { // Play boss death sound
+                        bossDeathSound.currentTime = 0;
+                        bossDeathSound.play().catch(e => console.error("Error playing boss death sound:", e));
+                    }
+
                     isBossWave = false; 
                     currentBoss = null; 
-                    platforms = []; 
                     bossDefeatCount++;
  
                     if (player) {
